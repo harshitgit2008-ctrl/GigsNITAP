@@ -1696,9 +1696,21 @@ function AdminView() {
   const handleDeleteUser = async (id, name) => {
     if (window.confirm(`Are you sure you want to permanently delete ${name}?`)) {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert("No auth token found. Please log out and log back in.");
+          return;
+        }
         await deleteUser(id);
-        setUsers(users.filter(u => u._id !== id));
-      } catch (err) { alert(err.response?.data?.error || err.response?.data?.message || "Failed to delete user. Try logging out and back in."); }
+        setUsers(prev => prev.filter(u => u._id !== id));
+        alert("User deleted successfully!");
+      } catch (err) {
+        console.error("Delete error:", err);
+        const msg = err.response
+          ? `Server returned ${err.response.status}: ${JSON.stringify(err.response.data)}`
+          : `Network error: ${err.message}`;
+        alert(msg);
+      }
     }
   };
 
@@ -1707,7 +1719,13 @@ function AdminView() {
       try {
         await clearReview(id);
         loadData(); // Reload to get updated gigs
-      } catch (err) { alert(err.response?.data?.error || err.response?.data?.message || "Failed to clear review. Try logging out and back in."); }
+      } catch (err) {
+        console.error("Clear review error:", err);
+        const msg = err.response
+          ? `Server returned ${err.response.status}: ${JSON.stringify(err.response.data)}`
+          : `Network error: ${err.message}`;
+        alert(msg);
+      }
     }
   };
 
