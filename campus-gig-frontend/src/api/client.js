@@ -4,6 +4,15 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
 });
 
+// Security: Attach JWT Token to every request
+API.interceptors.request.use((req) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    req.headers.Authorization = `Bearer ${token}`;
+  }
+  return req;
+});
+
 export const getGigs = (params) => API.get('/gigs', { params });
 export const getAllGigsAdmin = () => API.get('/gigs/admin/all');
 export const getUserGigs = (userId) => API.get(`/gigs/user/${userId}`);

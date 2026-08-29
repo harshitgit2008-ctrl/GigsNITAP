@@ -470,8 +470,13 @@ function OnboardingView({ onFinish, darkMode }) {
       
       const res = await registerUser(payload);
       
+      // Security: Save JWT Token
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+      
       // Pass the user to parent
-      onFinish({ user: res.data, availableNow: true });
+      onFinish({ user: res.data.user || res.data, availableNow: true });
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Authentication failed. Please check credentials.');
     } finally {
@@ -693,11 +698,11 @@ function FreelancerCard({ freelancer, onMessage }) {
   return (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
       <div className="flex items-start gap-3">
-        <Avatar initials={freelancer.initials} size="lg" online={freelancer.availableNow} />
+        <Avatar initials={freelancer.initials} size="lg" online={(freelancer.availableNow || freelancer.isAvailable)} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100 truncate">{freelancer.name}</h3>
-            {freelancer.availableNow && (
+            {(freelancer.availableNow || freelancer.isAvailable) && (
               <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> AVAILABLE NOW
               </span>
@@ -726,7 +731,7 @@ function FreelancerCard({ freelancer, onMessage }) {
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 mt-3">
-        {freelancer.portfolio.map((item) => (
+        {(freelancer.portfolio || ["DSA Crash Course Notes", "Web Dev Bootcamp Project"]).map((item) => (
           <div key={item} className="aspect-video rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-750 border border-slate-200 dark:border-slate-600 flex items-center justify-center p-2">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 text-center leading-tight line-clamp-3">{item}</p>
           </div>
@@ -735,7 +740,7 @@ function FreelancerCard({ freelancer, onMessage }) {
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
         <div>
-          <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">₹{freelancer.rate}</p>
+          <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">₹{(freelancer.rate || 250)}</p>
           <p className="text-[10px] text-slate-400">per hour</p>
         </div>
         <button
@@ -904,7 +909,7 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, c
             <EmptyState text="No gigs match your filters yet — try widening your search." />
           )
         ) : filteredFreelancers.length > 0 ? (
-          filteredFreelancers.map((f) => <FreelancerCard key={f.id} freelancer={f} onMessage={onMessageFreelancer} />)
+          filteredFreelancers.map((f) => <FreelancerCard key={f._id || f.id || Math.random()} freelancer={f} onMessage={onMessageFreelancer} />)
         ) : (
           <EmptyState text="No freelancers match your filters yet — try a different skill." />
         )}
@@ -1579,99 +1584,87 @@ function AdminView() {
     loadData();
   }, []);
 
-  if (loading) return <div className="p-10 text-center font-bold text-slate-500">Loading Admin Dashboard...</div>;
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-10 space-y-4">
+      <Loader2 className="animate-spin text-indigo-600" size={32} />
+      <span className="font-bold text-slate-500">Authenticating Admin...</span>
+    </div>
+  );
+
+  const completedGigs = gigs.filter(g => g.status === 'completed');
+  const activeGigs = gigs.filter(g => g.status !== 'completed');
+  const revenue = completedGigs.reduce((sum, g) => sum + (g.platformFee || 0), 0);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8 pb-20">
-      <div className="flex items-center gap-2 mb-2">
-        <ShieldCheck className="text-red-500" size={28} />
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Admin Dashboard</h2>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 pb-24">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 flex items-center justify-between">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-300 text-xs font-bold rounded-full mb-3 border border-red-500/30">
+            <ShieldCheck size={14} /> SYSTEM ADMINISTRATOR
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black">Admin Command Center</h1>
+          <p className="text-indigo-200 mt-1">Manage users, monitor transactions, and resolve disputes.</p>
+        </div>
+        <div className="hidden sm:block">
+          <div className="h-20 w-20 rounded-full border-4 border-indigo-500/30 overflow-hidden bg-slate-800 flex items-center justify-center">
+            <ShieldCheck size={40} className="text-indigo-400" />
+          </div>
+        </div>
       </div>
-      
-      <div>
-        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-3">Platform Users ({users.length})</h3>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500">
-              <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Branch/Year</th><th className="p-3">Loyalty Pts</th></tr>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Users</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white">{users.length}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Active Gigs</p>
+          <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{activeGigs.length}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Completed</p>
+          <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{completedGigs.length}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Platform Revenue</p>
+          <p className="text-3xl font-black text-amber-500 dark:text-amber-400">₹{revenue.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Recent Users Table */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><LayoutGrid size={18}/> Registered Students</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-800/30 text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                <th className="px-6 py-3 font-bold">Student Name</th>
+                <th className="px-6 py-3 font-bold">Email</th>
+                <th className="px-6 py-3 font-bold">Branch/Role</th>
+                <th className="px-6 py-3 font-bold">Loyalty Points</th>
+              </tr>
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u._id} className="border-b border-slate-100 dark:border-slate-700/50">
-                  <td className="p-3 font-medium text-slate-800 dark:text-slate-100">{u.name}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">{u.email}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">{u.major} - {u.year}</td>
-                  <td className="p-3 text-blue-600 font-bold">{u.loyaltyPoints}</td>
+                <tr key={u._id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="px-6 py-4 font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                    <Avatar initials={u.initials || "?"} size="sm" />
+                    {u.name}
+                  </td>
+                  <td className="px-6 py-4">{u.email}</td>
+                  <td className="px-6 py-4">
+                    <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-1 rounded text-xs font-bold">{u.major || u.role}</span>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-amber-500">{u.loyaltyPoints || 0}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-3">All Gigs & Fees ({gigs.length})</h3>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500">
-              <tr><th className="p-3">Title</th><th className="p-3">Status</th><th className="p-3">Budget</th><th className="p-3">Plat. Fee</th><th className="p-3">Tip</th></tr>
-            </thead>
-            <tbody>
-              {gigs.map(g => (
-                <tr key={g._id} className="border-b border-slate-100 dark:border-slate-700/50">
-                  <td className="p-3 font-medium text-slate-800 dark:text-slate-100">{g.title}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">{g.status}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">₹{g.budget}</td>
-                  <td className="p-3 text-emerald-600 font-bold">₹{g.platformFee || 0}</td>
-                  <td className="p-3 text-amber-600 font-bold">₹{g.tip || 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ===========================================================================
-// VIEW 6: INSIGHTS VIEW
-// ===========================================================================
-function InsightsView() {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Market Insights</h2>
-      
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Avg Hourly Rate</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">₹450</p>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Active Gigs</p>
-          <p className="text-2xl font-bold text-indigo-600 mt-1">142</p>
-        </div>
-      </div>
-
-      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Trending Campus Needs</h3>
-      <div className="space-y-3">
-        {[
-          { label: 'ED Sheet Drawing', demand: 90 },
-          { label: 'Last-minute Delivery', demand: 75 },
-          { label: 'Python Debugging', demand: 60 },
-          { label: 'Photography', demand: 45 },
-        ].map((item, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50">
-            <div className="flex justify-between text-sm font-semibold mb-2">
-              <span className="text-slate-700 dark:text-slate-300">{item.label}</span>
-              <span className="text-indigo-600 dark:text-indigo-400">High Demand</span>
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-              <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${item.demand}%` }}></div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
