@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { registerUser, getGigs, createGig, acceptGig as acceptGigAPI } from './api/client';
 import {
   Search, MapPin, Clock, Star, CheckCircle2, Zap, MessageCircle, User as UserIcon,
   Plus, Filter, Shield, DollarSign, TrendingUp, Award, Send, Paperclip, ChevronRight,
   Sparkles, Briefcase, GraduationCap, AlertTriangle, X, Check, Camera, Users, Home,
   LayoutGrid, Mail, ArrowRight, ArrowLeft, Flame, BadgeCheck, Wallet, FileText,
-  MessageSquareWarning, ChevronLeft, Settings, LogOut, Percent, Loader2
+  MessageSquareWarning, ChevronLeft, Settings, LogOut, Percent, Loader2,
+  BarChart, Activity, ShieldCheck, IndianRupee, QrCode
 } from "lucide-react";
 
 /**
@@ -64,12 +66,12 @@ import {
 // MOCK DATA — tailored to campus life
 // ---------------------------------------------------------------------------
 
-const CATEGORIES = ["All", "Tutoring", "Moving", "Tech", "Design", "Events"];
+const CATEGORIES = ["All", "Academics", "Errands", "Delivery", "Design", "Events"];
 
 const CATEGORY_STYLES = {
-  Tutoring: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20",
-  Moving: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
-  Tech: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/20",
+  Academics: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20",
+  Errands: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
+  Delivery: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/20",
   Design: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/10 dark:text-pink-300 dark:border-pink-500/20",
   Events: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
   All: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20",
@@ -78,181 +80,181 @@ const CATEGORY_STYLES = {
 const INITIAL_GIGS = [
   {
     id: "g1",
-    title: "Calculus II Tutor Needed Tonight",
-    category: "Tutoring",
-    reward: 25,
-    rewardType: "hourly",
-    eta: "~1.5 hrs",
-    poster: "Ravi Shah",
-    posterInitials: "RS",
+    title: "ED Sheet Drawing Help Needed Tonight",
+    category: "Academics",
+    reward: 200,
+    rewardType: "fixed",
+    eta: "~2 hrs",
+    poster: "Rajesh Kumar",
+    posterInitials: "RK",
     urgent: true,
-    location: "Library, 2nd Floor",
-    description: "Struggling with related rates before tomorrow's quiz. Need someone who can walk through 3-4 problems tonight.",
+    location: "Godavari Hostel, Room 214",
+    description: "Struggling with the orthographic projections for tomorrow's lab. Need someone to help me draw 3 sheets.",
   },
   {
     id: "g2",
-    title: "Help Moving Dorm Furniture — Saturday",
-    category: "Moving",
-    reward: 40,
+    title: "Need a Cycle for 3 Hours",
+    category: "Errands",
+    reward: 50,
     rewardType: "fixed",
-    eta: "~2 hrs",
-    poster: "Emma Liu",
-    posterInitials: "EL",
-    urgent: false,
-    location: "Hartwell Hall, Rm 214",
-    description: "Moving a desk, mini-fridge, and boxes from 2nd floor to a car. Need one extra pair of hands.",
+    eta: "~3 hrs",
+    poster: "Sneha Reddy",
+    posterInitials: "SR",
+    urgent: true,
+    location: "Banganga Hostel",
+    description: "Need a cycle to go to the main gate to pick up a parcel. Will return it in perfect condition.",
   },
   {
     id: "g3",
-    title: "Fix WiFi Router in Suite 4B",
-    category: "Tech",
-    reward: 15,
+    title: "Night Canteen Delivery (Maggi & Paratha)",
+    category: "Delivery",
+    reward: 40,
     rewardType: "fixed",
     eta: "~30 min",
-    poster: "Devon Brooks",
-    posterInitials: "DB",
+    poster: "Amit Sharma",
+    posterInitials: "AS",
     urgent: true,
-    location: "West Quad, Suite 4B",
-    description: "Router keeps dropping connection. Probably just needs a firmware reset and channel change.",
+    location: "Munneru Hostel",
+    description: "Too lazy to walk to the night canteen. Bring me 2 egg maggis and 1 aloo paratha. Tip included.",
   },
   {
     id: "g4",
-    title: "Flyer Design for Spring Formal",
+    title: "Vulcanzy Tech Fest UI/UX Design",
     category: "Design",
-    reward: 50,
+    reward: 1500,
     rewardType: "fixed",
     eta: "~3 days",
-    poster: "Alpha Phi Council",
-    posterInitials: "AP",
+    poster: "Vulcanzy Core Team",
+    posterInitials: "VC",
     urgent: false,
     location: "Remote",
-    description: "Need a poster + Instagram story set for our Spring Formal. Brand colors: navy & gold.",
+    description: "Need a Figma prototype for the Vulcanzy tech fest website. Cyberpunk theme.",
   },
   {
     id: "g5",
-    title: "Photographer for Club Rush Event",
+    title: "Event Photographer - Cultural Night",
     category: "Events",
-    reward: 60,
+    reward: 800,
     rewardType: "fixed",
     eta: "~4 hrs",
-    poster: "Student Activities Board",
-    posterInitials: "SA",
+    poster: "Cultural Committee",
+    posterInitials: "CC",
     urgent: false,
-    location: "Union Lawn",
-    description: "Covering the fall club rush fair. Deliver 40+ edited photos within 48 hrs.",
+    location: "Open Air Theatre",
+    description: "Covering the ethnic day performances. Deliver 50+ edited photos within 48 hrs.",
   },
   {
     id: "g6",
-    title: "CS 101 Project Debugging Help",
-    category: "Tech",
-    reward: 20,
+    title: "DSA End-Sem Crash Course / Notes",
+    category: "Tutoring",
+    reward: 300,
     rewardType: "hourly",
-    eta: "~1 hr",
-    poster: "Maria Gomez",
-    posterInitials: "MG",
+    eta: "~2 hrs",
+    poster: "Priya Singh",
+    posterInitials: "PS",
     urgent: true,
-    location: "Remote / Discord",
-    description: "Segfault somewhere in my linked-list assignment, due at midnight. Java.",
+    location: "Academic Block 1",
+    description: "Need someone to explain dynamic programming and graphs before tomorrow's DSA exam.",
   },
 ];
 
 const FREELANCERS = [
   {
     id: "f1",
-    name: "Priya Nair",
-    initials: "PN",
+    name: "Karthik N",
+    initials: "KN",
     major: "Computer Science",
-    year: "Junior",
+    year: "3rd Year",
     rating: 4.9,
     reviews: 62,
     skills: ["Python", "Tutoring", "Data Structures"],
-    rate: 22,
+    rate: 250,
     availableNow: true,
-    portfolio: ["DSA Crash Course Notes", "CS101 Grade Report — A"],
+    portfolio: ["DSA Crash Course Notes", "Web Dev Bootcamp Project"],
   },
   {
     id: "f2",
-    name: "Marcus Chen",
-    initials: "MC",
-    major: "Graphic Design",
-    year: "Senior",
+    name: "Anjali Rao",
+    initials: "AR",
+    major: "Mechanical Eng.",
+    year: "4th Year",
     rating: 5.0,
     reviews: 41,
-    skills: ["Figma", "Branding", "Illustration"],
-    rate: 35,
+    skills: ["AutoCAD", "Design", "Engineering Drawing"],
+    rate: 350,
     availableNow: false,
-    portfolio: ["Homecoming Poster Series", "Startup Pitch Deck"],
+    portfolio: ["Vulcanzy 2024 Stage Design", "Robotics Club CAD Models"],
   },
   {
     id: "f3",
-    name: "Sofia Reyes",
-    initials: "SR",
-    major: "Business Admin",
-    year: "Sophomore",
+    name: "Vikas Patel",
+    initials: "VP",
+    major: "Electronics (ECE)",
+    year: "2nd Year",
     rating: 4.7,
     reviews: 19,
-    skills: ["Event Planning", "Excel"],
-    rate: 18,
+    skills: ["Photography", "Event Management"],
+    rate: 400,
     availableNow: true,
-    portfolio: ["Greek Week Logistics", "Career Fair Booth Layout"],
+    portfolio: ["Shishir Fest Aftermovie", "Freshers Party Photos"],
   },
   {
     id: "f4",
-    name: "Devon Brooks",
-    initials: "DB",
-    major: "Electrical & Comp. Eng.",
-    year: "Junior",
+    name: "Surya T",
+    initials: "ST",
+    major: "Electrical (EEE)",
+    year: "3rd Year",
     rating: 4.8,
     reviews: 33,
-    skills: ["Hardware", "Arduino", "Networking"],
-    rate: 28,
+    skills: ["Hardware", "Arduino", "IoT"],
+    rate: 300,
     availableNow: true,
-    portfolio: ["Dorm Mesh WiFi Build", "Arduino Weather Station"],
+    portfolio: ["Smart Hostel Lock Build", "Arduino Weather Station"],
   },
   {
     id: "f5",
-    name: "Aisha Patel",
-    initials: "AP",
-    major: "Applied Mathematics",
-    year: "Senior",
+    name: "Deepak M",
+    initials: "DM",
+    major: "Civil Eng.",
+    year: "4th Year",
     rating: 5.0,
     reviews: 88,
-    skills: ["Calculus", "Statistics", "Tutoring"],
-    rate: 25,
+    skills: ["Math", "Calculus", "Tutoring"],
+    rate: 250,
     availableNow: true,
-    portfolio: ["Calc II Study Guide (300+ downloads)", "Stats Final Review Deck"],
+    portfolio: ["M1 & M2 Study Guide (300+ downloads)", "SOM Final Review Deck"],
   },
 ];
 
 const CONVERSATIONS = [
   {
     id: "c1",
-    name: "Ravi Shah",
-    initials: "RS",
-    gigTitle: "Calculus II Tutor Needed Tonight",
-    escrow: 45,
+    name: "Rajesh Kumar",
+    initials: "RK",
+    gigTitle: "ED Sheet Drawing Help Needed Tonight",
+    escrow: 200,
     lastMessage: "Sounds good, see you at 7!",
     unread: 2,
-    role: "buyer", // the current user is the SELLER in this thread
+    role: "buyer",
     messages: [
       { id: 1, type: "system", text: "Gig accepted by Jordan Kim." },
-      { id: 2, type: "system", text: "Escrow Funded — $45.00 locked." },
+      { id: 2, type: "system", text: "UPI Escrow Funded — ₹200.00 locked." },
       { id: 3, type: "them", text: "Hey! Thanks for picking this up, are you free around 7pm?" },
-      { id: 4, type: "me", text: "Yep, 7pm works. I'll bring practice problems on related rates." },
+      { id: 4, type: "me", text: "Yep, 7pm works. I'll bring my drafter." },
       { id: 5, type: "them", text: "Sounds good, see you at 7!" },
     ],
   },
   {
     id: "c2",
-    name: "Alpha Phi Council",
-    initials: "AP",
-    gigTitle: "Flyer Design for Spring Formal",
-    escrow: 50,
+    name: "Vulcanzy Core Team",
+    initials: "VC",
+    gigTitle: "Vulcanzy Tech Fest UI/UX Design",
+    escrow: 1500,
     lastMessage: "Attached the brand guide 📎",
     unread: 0,
     role: "buyer",
     messages: [
-      { id: 1, type: "system", text: "Escrow Funded — $50.00 locked." },
+      { id: 1, type: "system", text: "UPI Escrow Funded — ₹1500.00 locked." },
       { id: 2, type: "them", text: "Attached the brand guide 📎" },
       { id: 3, type: "file", text: "brand-guide.pdf" },
       { id: 4, type: "me", text: "Got it — first drafts by Thursday." },
@@ -260,24 +262,24 @@ const CONVERSATIONS = [
   },
   {
     id: "c3",
-    name: "Maria Gomez",
-    initials: "MG",
-    gigTitle: "CS 101 Project Debugging Help",
-    escrow: 20,
+    name: "Priya Singh",
+    initials: "PS",
+    gigTitle: "DSA End-Sem Crash Course / Notes",
+    escrow: 300,
     lastMessage: "It's fixed! Submitting for review now.",
     unread: 1,
     role: "buyer",
     messages: [
-      { id: 1, type: "system", text: "Escrow Funded — $20.00 locked." },
-      { id: 2, type: "me", text: "Found it — off-by-one in your remove() method." },
+      { id: 1, type: "system", text: "UPI Escrow Funded — ₹300.00 locked." },
+      { id: 2, type: "me", text: "Found the bug — off-by-one in your remove() method." },
       { id: 3, type: "them", text: "It's fixed! Submitting for review now." },
     ],
   },
 ];
 
 const SKILL_TAGS = [
-  "Tutoring", "Design", "Coding", "Moving", "Photography", "Writing",
-  "Event Planning", "Music", "Video Editing", "Math", "Languages",
+  "Tutoring", "Design", "Coding", "Delivery", "Photography", "AutoCAD",
+  "Event Planning", "Music", "Video Editing", "Math", "Engineering Drawing",
 ];
 
 // Deterministic mock "AI" price estimator — keyword + category weighted
@@ -413,18 +415,26 @@ function Toast({ message, show }) {
 
 function OnboardingView({ onFinish, darkMode }) {
   const [step, setStep] = useState(1);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [branch, setBranch] = useState("");
+  const [year, setYear] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [verified, setVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [role, setRole] = useState(null);
   const [skills, setSkills] = useState([]);
   const [availableNow, setAvailableNow] = useState(true);
+  const [error, setError] = useState("");
   const totalSteps = 3;
 
-  const eduValid = /^[^\s@]+@[^\s@]+\.edu$/i.test(email);
+  // Relaxed for dev/testing, but explicitly encouraging student.nitandhra.ac.in
+  const eduValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
+  const nameValid = name.trim().length >= 2;
+  const nitValid = email.toLowerCase().includes("nitandhra.ac.in");
 
   function handleVerify() {
-    if (!eduValid) return;
+    if (!eduValid || !nameValid) return;
     setVerifying(true);
     setTimeout(() => {
       setVerifying(false);
@@ -434,6 +444,31 @@ function OnboardingView({ onFinish, darkMode }) {
 
   function toggleSkill(skill) {
     setSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
+  }
+
+  async function handleFinish() {
+    setError("");
+    try {
+      const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      // Backend expects: major (branch), year, university
+      const res = await registerUser({ 
+        name: name.trim(), 
+        email: email.trim().toLowerCase(), 
+        role, 
+        skills, 
+        initials,
+        major: branch || 'B.Tech',
+        year: year || '1st Year',
+        university: 'NIT Andhra Pradesh'
+      });
+      
+      // Store UPI locally for MVP purposes since backend user model doesn't have it yet, 
+      // but ideally this goes to the DB.
+      const userData = { ...res.data, upiId: upiId || '' };
+      onFinish({ user: userData, availableNow });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+    }
   }
 
   return (
@@ -460,21 +495,74 @@ function OnboardingView({ onFinish, darkMode }) {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm p-6 sm:p-8">
+          {error && (
+            <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-3 py-2.5 text-red-700 dark:text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+
           {step === 1 && (
             <div className="space-y-5">
               <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
                 <Shield size={20} />
-                <span className="text-xs font-bold uppercase tracking-wider">Institutional SSO</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Campus Verification</span>
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Verify your .edu email</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create your account</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Gig Marketplace is exclusive to verified students — this keeps every gig hyper-local and trustworthy.
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">School email</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Your name</label>
+                <div className="relative">
+                  <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ravi Kumar"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Branch</label>
+                  <select
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Select...</option>
+                    <option value="CSE">CSE</option>
+                    <option value="ECE">ECE</option>
+                    <option value="EEE">EEE</option>
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Civil">Civil</option>
+                    <option value="Biotech">Biotech</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">B.Tech Year</label>
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Select...</option>
+                    <option value="1st Year">1st Year</option>
+                    <option value="2nd Year">2nd Year</option>
+                    <option value="3rd Year">3rd Year</option>
+                    <option value="4th Year">4th Year</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">NIT AP Email (Roll No.)</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -484,13 +572,27 @@ function OnboardingView({ onFinish, darkMode }) {
                       setEmail(e.target.value);
                       setVerified(false);
                     }}
-                    placeholder="you@university.edu"
+                    placeholder="412101@student.nitandhra.ac.in"
                     className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
                 {email.length > 0 && !eduValid && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Must be a valid .edu address.</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Must be a valid email address.</p>
                 )}
+                {email.length > 0 && eduValid && !nitValid && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Note: For official verification, use @student.nitandhra.ac.in</p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1"><QrCode size={12}/> UPI ID (For Escrow Payments)</label>
+                <input
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  placeholder="rollno@ybl"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
               </div>
 
               {verified && (
@@ -502,7 +604,7 @@ function OnboardingView({ onFinish, darkMode }) {
 
               <button
                 onClick={handleVerify}
-                disabled={!eduValid || verifying}
+                disabled={!eduValid || !nameValid || verifying}
                 className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-semibold py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
               >
                 {verifying ? (
@@ -602,7 +704,7 @@ function OnboardingView({ onFinish, darkMode }) {
                   <ArrowLeft size={14} /> Back
                 </button>
                 <button
-                  onClick={() => onFinish({ role, skills, availableNow })}
+                  onClick={handleFinish}
                   disabled={skills.length === 0}
                   className="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-semibold py-2.5 text-sm flex items-center justify-center gap-1"
                 >
@@ -639,9 +741,19 @@ function GigCard({ gig, onAccept, accepted }) {
           <span className="flex items-center gap-1"><Clock size={12} /> {gig.eta}</span>
           <span className="flex items-center gap-1"><MapPin size={12} /> {gig.location}</span>
         </div>
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-          <Avatar initials={gig.posterInitials} size="sm" />
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{gig.poster}</span>
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+          <div className="flex items-center gap-2">
+            <Avatar initials={gig.posterInitials} size="sm" />
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                {gig.poster}
+                {gig.verified && <ShieldCheck size={12} className="text-blue-500" />}
+              </span>
+              <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                <Star size={10} className="fill-amber-400 text-amber-400" /> {gig.posterRating.toFixed(1)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -649,8 +761,11 @@ function GigCard({ gig, onAccept, accepted }) {
 
       <div className="w-28 sm:w-32 shrink-0 flex flex-col items-center justify-center gap-2 p-3 bg-slate-50/60 dark:bg-slate-900/40">
         <div className="text-center">
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">${gig.reward}</p>
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">₹{gig.reward}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">{gig.rewardType === "hourly" ? "/ hr" : "flat"}</p>
+        </div>
+        <div className="flex items-center justify-center w-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold py-1 px-1 rounded gap-1 mb-1 border border-emerald-100 dark:border-emerald-800/50">
+          <QrCode size={10} /> UPI Escrow
         </div>
         <button
           onClick={() => onAccept(gig.id)}
@@ -714,7 +829,7 @@ function FreelancerCard({ freelancer, onMessage }) {
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
         <div>
-          <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">${freelancer.rate}</p>
+          <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">₹{freelancer.rate}</p>
           <p className="text-[10px] text-slate-400">per hour</p>
         </div>
         <button
@@ -728,20 +843,58 @@ function FreelancerCard({ freelancer, onMessage }) {
   );
 }
 
-function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast }) {
+function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, currentUser }) {
   const [feedMode, setFeedMode] = useState("board"); // "board" | "directory"
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [onCampusOnly, setOnCampusOnly] = useState(false);
+  const [gigs, setGigs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const filteredGigs = useMemo(() => {
-    return INITIAL_GIGS.filter((g) => {
-      const matchesCategory = category === "All" || g.category === category;
-      const matchesQuery = g.title.toLowerCase().includes(query.toLowerCase()) || g.description.toLowerCase().includes(query.toLowerCase());
-      const matchesCampus = !onCampusOnly || !g.location.toLowerCase().includes("remote");
-      return matchesCategory && matchesQuery && matchesCampus;
-    });
-  }, [query, category, onCampusOnly]);
+  const fetchGigs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (category !== 'All') params.category = category;
+      if (query.trim()) params.search = query.trim();
+      const res = await getGigs(params);
+      setGigs(res.data);
+    } catch (err) {
+      console.error('Failed to fetch gigs:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [category, query]);
+
+  useEffect(() => {
+    if (feedMode === 'board') {
+      const debounce = setTimeout(fetchGigs, 300);
+      return () => clearTimeout(debounce);
+    }
+  }, [fetchGigs, feedMode]);
+
+  // Map API gig to the shape GigCard expects
+  const mapGig = (g) => ({
+    id: g._id,
+    title: g.title,
+    category: g.category,
+    reward: g.budget,
+    rewardType: g.rewardType || 'fixed',
+    eta: g.eta || '~1 hr',
+    poster: g.postedBy?.name || 'Unknown',
+    posterInitials: g.postedBy?.initials || (g.postedBy?.name ? g.postedBy.name.split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2) : '??'),
+    posterRating: g.postedBy?.rating || 4.8,
+    verified: true,
+    urgent: g.urgent,
+    location: g.location || 'On Campus',
+    description: g.description,
+  });
+
+  const displayGigs = useMemo(() => {
+    let mapped = gigs.map(mapGig);
+    if (onCampusOnly) mapped = mapped.filter(g => !g.location.toLowerCase().includes('remote'));
+    return mapped;
+  }, [gigs, onCampusOnly]);
 
   const filteredFreelancers = useMemo(() => {
     return FREELANCERS.filter((f) => {
@@ -802,10 +955,34 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast })
       {/* Results */}
       <div className="mt-4 space-y-3">
         {feedMode === "board" ? (
-          filteredGigs.length > 0 ? (
-            filteredGigs.map((g) => (
-              <GigCard key={g.id} gig={g} onAccept={(id) => { onAcceptGig(id); showToast(`Accepted "${g.title}"`); }} accepted={acceptedGigs.includes(g.id)} />
-            ))
+          loading ? (
+            <div className="text-center py-16"><Loader2 size={24} className="animate-spin mx-auto text-indigo-500" /><p className="text-sm text-slate-500 mt-2">Loading gigs…</p></div>
+          ) : displayGigs.length > 0 ? (
+            <>
+              {currentUser?.skills?.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-1.5">
+                    <Sparkles size={16} className="text-indigo-500" /> Recommended For You
+                  </h3>
+                  <div className="space-y-3">
+                    {displayGigs
+                      .filter(g => currentUser.skills.some(s => g.category.toLowerCase().includes(s.toLowerCase()) || g.title.toLowerCase().includes(s.toLowerCase())))
+                      .slice(0, 2)
+                      .map((g) => (
+                        <GigCard key={g.id} gig={g} onAccept={(id) => { onAcceptGig(id); showToast(`Accepted "${g.title}"`); }} accepted={acceptedGigs.includes(g.id)} />
+                      ))}
+                    {displayGigs.filter(g => currentUser.skills.some(s => g.category.toLowerCase().includes(s.toLowerCase()) || g.title.toLowerCase().includes(s.toLowerCase()))).length === 0 && (
+                      <p className="text-xs text-slate-500 italic px-2">No recommended gigs match your skills right now.</p>
+                    )}
+                  </div>
+                  <div className="my-5 border-b border-slate-200 dark:border-slate-700/60" />
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">All Campus Gigs</h3>
+                </div>
+              )}
+              {displayGigs.map((g) => (
+                <GigCard key={g.id} gig={g} onAccept={(id) => { onAcceptGig(id); showToast(`Accepted "${g.title}"`); }} accepted={acceptedGigs.includes(g.id)} />
+              ))}
+            </>
           ) : (
             <EmptyState text="No gigs match your filters yet — try widening your search." />
           )
@@ -834,18 +1011,21 @@ function EmptyState({ text }) {
 // VIEW 3 — AI-ASSISTED GIG CREATION
 // ===========================================================================
 
-function PostGigView({ onCreate, showToast }) {
+function PostGigView({ onCreate, showToast, currentUser }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Tutoring");
   const [description, setDescription] = useState("");
   const [pricingType, setPricingType] = useState("fixed"); // fixed | milestone
   const [price, setPrice] = useState("");
+  const [location, setLocation] = useState("");
+  const [eta, setEta] = useState("");
   const [milestones, setMilestones] = useState([
     { id: 1, label: "Initial draft / setup", amount: "" },
     { id: 2, label: "Final delivery", amount: "" },
   ]);
   const [urgent, setUrgent] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const estimate = useMemo(() => estimatePrice(title, category, description), [title, category, description]);
 
@@ -858,20 +1038,41 @@ function PostGigView({ onCreate, showToast }) {
   }
 
   const milestoneTotal = milestones.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0);
-  const readyToPost = title.trim().length > 3 && description.trim().length > 5 && (pricingType === "fixed" ? price : milestoneTotal > 0);
+  const budgetValue = pricingType === "fixed" ? parseFloat(price) || 0 : milestoneTotal;
+  const readyToPost = title.trim().length > 3 && description.trim().length > 5 && budgetValue > 0;
 
-  function handleSubmit() {
-    if (!readyToPost) return;
-    setPosted(true);
-    showToast("Gig posted to the board!");
-    onCreate();
-    setTimeout(() => {
-      setPosted(false);
-      setTitle("");
-      setDescription("");
-      setPrice("");
-      setUrgent(false);
-    }, 1600);
+  async function handleSubmit() {
+    if (!readyToPost || submitting) return;
+    setSubmitting(true);
+    try {
+      await createGig({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        budget: budgetValue,
+        rewardType: pricingType === "milestone" ? "fixed" : pricingType,
+        urgent,
+        eta: eta.trim() || undefined,
+        location: location.trim() || undefined,
+        postedBy: currentUser._id,
+      });
+      setPosted(true);
+      showToast("Gig posted to the board!");
+      onCreate();
+      setTimeout(() => {
+        setPosted(false);
+        setTitle("");
+        setDescription("");
+        setPrice("");
+        setLocation("");
+        setEta("");
+        setUrgent(false);
+        setSubmitting(false);
+      }, 1600);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to post gig');
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -912,6 +1113,33 @@ function PostGigView({ onCreate, showToast }) {
             placeholder="What exactly do you need done, and by when?"
             className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Location</label>
+            <div className="relative">
+              <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Godavari Hostel"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Estimated time</label>
+            <div className="relative">
+              <Clock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={eta}
+                onChange={(e) => setEta(e.target.value)}
+                placeholder="e.g. ~2 hrs"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
         </div>
 
         {/* AI Price Estimator Widget */}
@@ -998,7 +1226,7 @@ function PostGigView({ onCreate, showToast }) {
             <Flame size={16} className="text-amber-500" />
             <div>
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Promote as Urgent</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Pin to top of board · +$2.00 fee</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Pin to top of board · +₹2.00 fee</p>
             </div>
           </div>
           <Toggle checked={urgent} onChange={setUrgent} color="indigo" />
@@ -1007,18 +1235,22 @@ function PostGigView({ onCreate, showToast }) {
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between text-sm">
           <span className="text-slate-500 dark:text-slate-400">You'll be charged at posting</span>
           <span className="font-bold text-slate-800 dark:text-white tabular-nums">
-            ${((pricingType === "fixed" ? parseFloat(price) || 0 : milestoneTotal) + (urgent ? 2 : 0)).toFixed(2)}
+            ${(budgetValue + (urgent ? 2 : 0)).toFixed(2)}
           </span>
         </div>
 
         <button
           onClick={handleSubmit}
-          disabled={!readyToPost}
+          disabled={!readyToPost || submitting}
           className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-bold py-3 text-sm flex items-center justify-center gap-2 transition-colors"
         >
           {posted ? (
             <>
               <CheckCircle2 size={16} /> Posted!
+            </>
+          ) : submitting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Posting…
             </>
           ) : (
             <>
@@ -1225,23 +1457,23 @@ function ChatView({ conversations, setConversations, activeId, setActiveId, show
 // VIEW 5 — PROFILE & PORTFOLIO
 // ===========================================================================
 
-function ProfileView({ availableNow, setAvailableNow, acceptedCount }) {
+function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser }) {
   const [tab, setTab] = useState("gigs");
 
   const completedGigs = [
-    { title: "Physics I Problem Set Review", amount: 24, date: "Aug 21" },
-    { title: "Dorm Room Move — West Quad", amount: 40, date: "Aug 15" },
-    { title: "Instagram Flyer for Club Fair", amount: 55, date: "Aug 9" },
+    { title: "M1 Exam Notes Delivery", amount: 150, date: "Aug 21" },
+    { title: "Shifted mattress to Godavari Hostel", amount: 200, date: "Aug 15" },
+    { title: "Vulcanzy Core Team T-Shirt Design", amount: 800, date: "Aug 9" },
   ];
   const workSamples = [
-    { title: "React Todo App (CS101 project)", type: "Code" },
-    { title: "Study Guide — Discrete Math", type: "Doc" },
-    { title: "Event Poster — Battle of the Bands", type: "Design" },
+    { title: "Python Automation Script", type: "Code" },
+    { title: "ED Sheet Orthographic Guide", type: "Doc" },
+    { title: "Shishir Fest Poster", type: "Design" },
   ];
   const reviews = [
-    { name: "Ravi Shah", rating: 5, text: "Explained related rates way better than my professor. Would book again." },
-    { name: "Emma Liu", rating: 5, text: "Careful with furniture, showed up right on time." },
-    { name: "Maria Gomez", rating: 4, text: "Fixed my bug fast, minor delay replying at first." },
+    { name: "Suresh P", rating: 5, text: "Explained pointers in C very well. Highly recommended." },
+    { name: "Ananya S", rating: 5, text: "Brought my parcel from main gate quickly." },
+    { name: "Rahul M", rating: 4, text: "Good design work, but asked for 2 revisions." },
   ];
 
   return (
@@ -1252,26 +1484,33 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount }) {
       </div>
       <div className="px-4 sm:px-6">
         <div className="-mt-12 flex items-end justify-between">
-          <Avatar initials="JK" size="xl" ring />
+          <Avatar initials={currentUser?.initials || "?"} size="xl" ring />
           <button className="mb-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
             <Settings size={13} /> Edit
           </button>
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Jordan Kim</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{currentUser?.name || "Student"}</h1>
           <BadgeCheck size={17} className="text-indigo-500" />
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
-          <GraduationCap size={14} /> Computer Science · Junior
+          <GraduationCap size={14} /> {currentUser?.major || "Student"} {currentUser?.year ? `· ${currentUser.year}` : ""}
         </p>
 
         <div className="flex flex-wrap gap-1.5 mt-2">
+          {currentUser?.upiId && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2.5 py-1">
+              <QrCode size={11} /> UPI: {currentUser.upiId}
+            </span>
+          )}
+          {currentUser?.email && currentUser.email.match(/^\d+/) && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold px-2.5 py-1">
+              <ShieldCheck size={11} /> Roll No: {currentUser.email.match(/^\d+/)[0]}
+            </span>
+          )}
           <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white text-[11px] font-bold px-2.5 py-1">
-            <Award size={11} /> Top Rated Tutor
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-sky-400 to-sky-500 text-white text-[11px] font-bold px-2.5 py-1">
-            <Zap size={11} /> Speedy Responder
+            <Award size={11} /> Top Rated
           </span>
         </div>
 
@@ -1286,7 +1525,7 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount }) {
 
         {/* Earnings dashboard */}
         <div className="grid grid-cols-3 gap-2.5 mt-4">
-          <MetricCard icon={DollarSign} label="Total Earned" value="$1,240" accent="emerald" />
+          <MetricCard icon={IndianRupee} label="Total Earned" value="₹12,400" accent="emerald" />
           <MetricCard icon={CheckCircle2} label="Completed" value={`${38 + acceptedCount}`} accent="indigo" />
           <MetricCard icon={Star} label="Rating" value="4.9" accent="amber" />
         </div>
@@ -1372,25 +1611,112 @@ function MetricCard({ icon: Icon, label, value, accent }) {
 }
 
 // ===========================================================================
+// INSIGHTS VIEW
+// ===========================================================================
+
+function InsightsView() {
+  return (
+    <div className="max-w-2xl mx-auto px-4 pb-6">
+      <div className="pt-6 pb-4">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <Activity className="text-indigo-600 dark:text-indigo-400" />
+          Campus Economy
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Live data from the student marketplace.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 text-white shadow-sm">
+          <div className="flex items-center gap-1.5 opacity-80 text-xs font-semibold uppercase tracking-wider mb-2">
+            <DollarSign size={14} /> Total Value Created
+          </div>
+          <div className="text-3xl font-black tabular-nums tracking-tight">₹42,850</div>
+          <div className="text-xs mt-1 opacity-80">This semester</div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            <CheckCircle2 size={14} /> Gigs Completed
+          </div>
+          <div className="text-3xl font-black text-slate-800 dark:text-white tabular-nums tracking-tight">1,842</div>
+          <div className="text-xs mt-1 text-emerald-500 font-medium flex items-center gap-0.5">
+            <TrendingUp size={10} /> +12% this week
+          </div>
+        </div>
+      </div>
+
+      <h3 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+        <Flame size={16} className="text-amber-500" /> High Demand Skills (Pre Mid-Sems)
+      </h3>
+      <div className="space-y-3 mb-6">
+        {[
+          { skill: "DSA & C++ Tutoring", rate: "₹300 - ₹500/hr", demand: 92 },
+          { skill: "Engineering Drawing (ED)", rate: "₹200 - ₹400 flat", demand: 85 },
+          { skill: "Night Canteen Delivery", rate: "₹30 - ₹50 flat", demand: 78 },
+          { skill: "AutoCAD & SolidWorks", rate: "₹400 - ₹800/hr", demand: 70 },
+        ].map((item, i) => (
+          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex justify-between items-end mb-2">
+              <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{item.skill}</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.rate}</span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
+              <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${item.demand}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+        <Award size={16} className="text-indigo-500" /> Top Contributors
+      </h3>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
+        {[
+          { name: "Karthik N", initials: "KN", major: "CSE", earned: "₹12,400", rank: 1 },
+          { name: "Vikas Patel", initials: "VP", major: "ECE", earned: "₹9,800", rank: 2 },
+          { name: "Deepak M", initials: "DM", major: "Civil", earned: "₹8,500", rank: 3 },
+        ].map((user, i) => (
+          <div key={i} className={`flex items-center gap-3 p-3 ${i !== 2 ? 'border-b border-slate-100 dark:border-slate-700/60' : ''}`}>
+            <div className="w-6 text-center text-sm font-black text-slate-400">#{user.rank}</div>
+            <Avatar initials={user.initials} size="sm" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm text-slate-800 dark:text-slate-100">{user.name}</div>
+              <div className="text-[10px] text-slate-500">{user.major}</div>
+            </div>
+            <div className="font-bold text-sm text-emerald-600 dark:text-emerald-400">{user.earned}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
 // APP SHELL — NAV + ROUTING
 // ===========================================================================
 
 const NAV_ITEMS = [
-  { id: "onboarding", label: "Onboarding", icon: Shield },
   { id: "feed", label: "Explore", icon: Home },
   { id: "post", label: "Post Gig", icon: Plus },
   { id: "chat", label: "Chat", icon: MessageCircle },
+  { id: "insights", label: "Insights", icon: BarChart },
   { id: "profile", label: "Profile", icon: UserIcon },
 ];
 
 export default function StudentGigApp() {
-  const [view, setView] = useState("onboarding");
-  const [onboarded, setOnboarded] = useState(false);
+  // Restore user from localStorage on mount
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('campusgig_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  });
+  const [view, setView] = useState(currentUser ? "feed" : "onboarding");
+  const [onboarded, setOnboarded] = useState(!!currentUser);
   const [darkMode, setDarkMode] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "" });
 
   const [acceptedGigs, setAcceptedGigs] = useState([]);
-  const [availableNow, setAvailableNow] = useState(true);
+  const [availableNow, setAvailableNow] = useState(currentUser?.isAvailable ?? true);
   const [conversations, setConversations] = useState(CONVERSATIONS);
   const [activeChatId, setActiveChatId] = useState(null);
   const [postedCount, setPostedCount] = useState(0);
@@ -1400,16 +1726,31 @@ export default function StudentGigApp() {
     setTimeout(() => setToast({ show: false, message: "" }), 2200);
   }
 
-  function handleOnboardingFinish({ availableNow: avail }) {
+  function handleOnboardingFinish({ user, availableNow: avail }) {
+    setCurrentUser(user);
+    localStorage.setItem('campusgig_user', JSON.stringify(user));
     setOnboarded(true);
     setAvailableNow(avail);
     setView("feed");
     showToast("Welcome to the marketplace!");
   }
 
-  function handleAcceptGig(id) {
-    setActiveChatId((prev) => prev);
-    setAcceptedGigs((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  async function handleAcceptGig(id) {
+    if (acceptedGigs.includes(id)) return;
+    try {
+      await acceptGigAPI(id, currentUser._id);
+      setAcceptedGigs((prev) => [...prev, id]);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to accept gig');
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('campusgig_user');
+    setCurrentUser(null);
+    setOnboarded(false);
+    setView('onboarding');
+    setAcceptedGigs([]);
   }
 
   function handleMessageFreelancer(freelancer) {
@@ -1481,6 +1822,15 @@ export default function StudentGigApp() {
                 <span className={`h-1.5 w-1.5 rounded-full bg-emerald-500 ${availableNow ? "animate-pulse" : "opacity-40"}`} />
                 {availableNow ? "Available" : "Away"}
               </div>
+              {currentUser && (
+                <button
+                  onClick={handleLogout}
+                  className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                  title="Log out"
+                >
+                  <LogOut size={14} />
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -1494,9 +1844,10 @@ export default function StudentGigApp() {
               onAcceptGig={handleAcceptGig}
               onMessageFreelancer={handleMessageFreelancer}
               showToast={showToast}
+              currentUser={currentUser}
             />
           )}
-          {view === "post" && <PostGigView onCreate={() => setPostedCount((c) => c + 1)} showToast={showToast} />}
+          {view === "post" && <PostGigView onCreate={() => setPostedCount((c) => c + 1)} showToast={showToast} currentUser={currentUser} />}
           {view === "chat" && (
             <ChatView
               conversations={conversations}
@@ -1506,8 +1857,9 @@ export default function StudentGigApp() {
               showToast={showToast}
             />
           )}
+          {view === "insights" && <InsightsView />}
           {view === "profile" && (
-            <ProfileView availableNow={availableNow} setAvailableNow={setAvailableNow} acceptedCount={acceptedGigs.length + postedCount} />
+            <ProfileView availableNow={availableNow} setAvailableNow={setAvailableNow} acceptedCount={acceptedGigs.length + postedCount} currentUser={currentUser} />
           )}
         </main>
 
