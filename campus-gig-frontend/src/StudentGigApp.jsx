@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { registerUser, getGigs, createGig, acceptGig as acceptGigAPI, getAllGigsAdmin, getAllUsers, getUserGigs, completeGig } from './api/client';
+import { registerUser, getGigs, createGig, acceptGig as acceptGigAPI, getAllGigsAdmin, getAllUsers, getUserGigs, completeGig, deleteUser, clearReview, deleteGig } from './api/client';
 import {
   Search, MapPin, Clock, Star, CheckCircle2, Zap, MessageCircle, User as UserIcon,
   Plus, Filter, Shield, DollarSign, TrendingUp, Award, Send, Paperclip, ChevronRight,
