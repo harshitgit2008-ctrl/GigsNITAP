@@ -1880,7 +1880,14 @@ export default function StudentGigApp() {
 
   const [acceptedGigs, setAcceptedGigs] = useState([]);
   const [availableNow, setAvailableNow] = useState(currentUser?.isAvailable ?? true);
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState(() => {
+    const saved = localStorage.getItem('campusgig_chats');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('campusgig_chats', JSON.stringify(conversations));
+  }, [conversations]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [postedCount, setPostedCount] = useState(0);
 
