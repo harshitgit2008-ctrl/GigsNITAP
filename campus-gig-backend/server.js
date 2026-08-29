@@ -11,30 +11,49 @@ const userRoutes = require('./routes/userRoutes');
 const gigRoutes = require('./routes/gigRoutes');
 
 const app = express();
-app.use(cors());
 
-// Deep Security: Helmet protects HTTP headers
+// Security: CORS — restrict to known origins in production
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Security: Helmet protects HTTP headers
 app.use(helmet());
 
-// Scalability: Compress all API responses to make the app lightning fast
+// Performance: Compress all API responses (Gzip)
 app.use(compression());
 
-// Security: Prevent NoSQL Injection attacks (e.g. {"$gt": ""})
+// Security: Prevent NoSQL Injection attacks
 app.use(mongoSanitize());
 
-
-// Integrity: Rate limiting to prevent brute force and DDoS attacks
+// Security: Rate limiting to prevent brute force and DDoS
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 app.use('/api/', apiLimiter);
 
-app.use(express.json());
+// Performance: Limit request body size to prevent payload attacks
+app.use(express.json({ limit: '1mb' }));
 
 app.use('/api/users', userRoutes);
 app.use('/api/gigs', gigRoutes);
+
+// Health check endpoint for monitoring
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// Integrity: Global error handler — never leak stack traces in production
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
