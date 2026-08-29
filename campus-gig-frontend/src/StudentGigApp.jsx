@@ -756,6 +756,7 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, c
   const [onCampusOnly, setOnCampusOnly] = useState(false);
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(false);
+    const [dbUsers, setDbUsers] = useState([]);
 
   const fetchGigs = useCallback(async () => {
     setLoading(true);
@@ -776,8 +777,17 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, c
     if (feedMode === 'board') {
       const debounce = setTimeout(fetchGigs, 300);
       return () => clearTimeout(debounce);
+    } else if (feedMode === 'directory') {
+      async function loadDirectory() {
+        try {
+          const { getAllUsers } = await import('./api/client.js');
+          const res = await getAllUsers();
+          setDbUsers(res.data.filter(u => u._id !== currentUser?._id && u.role !== 'admin'));
+        } catch (e) { console.error(e); }
+      }
+      loadDirectory();
     }
-  }, [fetchGigs, feedMode]);
+  }, [fetchGigs, feedMode, currentUser]);
 
   // Map API gig to the shape GigCard expects
   const mapGig = (g) => ({
@@ -803,12 +813,13 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, c
   }, [gigs, onCampusOnly]);
 
   const filteredFreelancers = useMemo(() => {
-    return FREELANCERS.filter((f) => {
-      const matchesCategory = category === "All" || f.skills.some((s) => s.toLowerCase().includes(category.toLowerCase())) || category === "Tutoring" && f.skills.some(s=>s.toLowerCase().includes('tutor')||s.toLowerCase().includes('math')||s.toLowerCase().includes('calc'));
-      const matchesQuery = f.name.toLowerCase().includes(query.toLowerCase()) || f.skills.join(" ").toLowerCase().includes(query.toLowerCase()) || f.major.toLowerCase().includes(query.toLowerCase());
+    return dbUsers.filter((f) => {
+      const skillsStr = (f.skills || []).join(" ").toLowerCase();
+      const matchesCategory = category === "All" || skillsStr.includes(category.toLowerCase()) || (category === "Tutoring" && (skillsStr.includes('tutor') || skillsStr.includes('math') || skillsStr.includes('calc')));
+      const matchesQuery = (f.name || "").toLowerCase().includes(query.toLowerCase()) || skillsStr.includes(query.toLowerCase()) || (f.major || "").toLowerCase().includes(query.toLowerCase());
       return (category === "All" ? true : matchesCategory) && matchesQuery;
     });
-  }, [query, category]);
+  }, [query, category, dbUsers]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 pb-6">
@@ -1690,7 +1701,7 @@ export default function StudentGigApp() {
 
   const [acceptedGigs, setAcceptedGigs] = useState([]);
   const [availableNow, setAvailableNow] = useState(currentUser?.isAvailable ?? true);
-  const [conversations, setConversations] = useState(CONVERSATIONS);
+  const [conversations, setConversations] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [postedCount, setPostedCount] = useState(0);
 
