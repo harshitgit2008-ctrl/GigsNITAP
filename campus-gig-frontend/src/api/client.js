@@ -28,3 +28,16 @@ export const toggleAvailability = (id) => API.patch(`/users/${id}/availability`)
 export const deleteUser = (id) => API.delete(`/users/${id}`);
 export const clearReview = (id) => API.patch(`/gigs/${id}/clear-review`);
 export const deleteGig = (id) => API.delete(`/gigs/${id}`);
+
+// Integrity: Auto-logout on expired/invalid tokens
+API.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response && err.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('gigUser');
+      window.location.reload();
+    }
+    return Promise.reject(err);
+  }
+);
