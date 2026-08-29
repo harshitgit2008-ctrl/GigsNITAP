@@ -125,4 +125,35 @@ router.patch('/:id/complete', auth, async (req, res) => {
   }
 });
 
+
+// Admin Route: Clear an absurd review
+router.patch('/:id/clear-review', auth, async (req, res) => {
+  try {
+    if (req.user.email !== 'admin@nitandhra.ac.in') return res.status(403).json({ error: 'Admins only' });
+    const gig = await Gig.findById(req.params.id);
+    if (!gig) return res.status(404).json({ message: 'Gig not found' });
+    
+    // Unset the review
+    gig.posterReview = undefined;
+    await gig.save();
+    
+    const populated = await gig.populate('postedBy', 'name email rating initials');
+    res.json(populated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin Route: Delete Gig completely
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.email !== 'admin@nitandhra.ac.in') return res.status(403).json({ error: 'Admins only' });
+    await Gig.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Gig permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
+

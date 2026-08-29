@@ -101,4 +101,17 @@ router.patch('/:id/availability', auth, async (req, res) => {
   }
 });
 
+
+// Admin Route: Delete User
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.email !== 'admin@nitandhra.ac.in') return res.status(403).json({ error: 'Unauthorized: Admins only' });
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'User permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 module.exports = router;
+

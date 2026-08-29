@@ -1565,21 +1565,160 @@ const NAV_ITEMS = [
 // ===========================================================================
 // ADMIN VIEW
 // ===========================================================================
+
+
+// ===========================================================================
+// RAZORPAY ESCROW MOCK
+// ===========================================================================
+function RazorpayMock({ amount, onComplete, onCancel }) {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    let t1, t2;
+    if (step === 0) t1 = setTimeout(() => setStep(1), 1500);
+    if (step === 1) t2 = setTimeout(() => {
+      setStep(2);
+      setTimeout(onComplete, 1500);
+    }, 2000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [step, onComplete]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="bg-[#02042b] p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-white p-1 rounded">
+              <div className="w-4 h-4 bg-blue-600 rounded-sm" />
+            </div>
+            <span className="text-white font-bold tracking-widest text-sm">RAZORPAY</span>
+          </div>
+          <button onClick={onCancel} className="text-slate-400 hover:text-white"><X size={18}/></button>
+        </div>
+        
+        <div className="p-6 flex flex-col items-center justify-center min-h-[200px] text-center">
+          {step === 0 && (
+            <>
+              <Loader2 size={40} className="text-blue-600 animate-spin mb-4" />
+              <p className="text-slate-800 font-bold">Initializing Secure Escrow...</p>
+              <p className="text-xs text-slate-500 mt-2">Connecting to UPI Gateway</p>
+            </>
+          )}
+          {step === 1 && (
+            <>
+              <ShieldCheck size={40} className="text-indigo-600 animate-pulse mb-4" />
+              <p className="text-slate-800 font-bold">Locking ₹{amount} in Escrow</p>
+              <p className="text-xs text-slate-500 mt-2">Funds are held securely by CampusGigs.</p>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <CheckCircle2 size={48} className="text-emerald-500 mb-4" />
+              <p className="text-slate-800 font-black text-lg">Payment Secured!</p>
+            </>
+          )}
+        </div>
+        
+        <div className="bg-slate-50 p-3 text-center border-t border-slate-100">
+          <p className="text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1"><Shield size={10}/> SECURED BY RAZORPAY 256-BIT ENCRYPTION</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ===========================================================================
+// INSIGHTS VIEW
+// ===========================================================================
+function InsightsView() {
+  return (
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
+      <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg mb-6">
+        <h1 className="text-2xl sm:text-3xl font-black mb-2">Campus Economy Insights</h1>
+        <p className="text-indigo-100 text-sm">Real-time data on what skills are trending at NIT Andhra Pradesh.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wider">Most In-Demand Skills</h3>
+          <div className="space-y-3">
+            {[
+              { skill: "Web Development", percent: 85 },
+              { skill: "Video Editing", percent: 65 },
+              { skill: "Graphic Design", percent: 50 },
+              { skill: "Academic Tutoring", percent: 30 }
+            ].map(s => (
+              <div key={s.skill}>
+                <div className="flex justify-between text-xs font-bold mb-1 dark:text-slate-200">
+                  <span>{s.skill}</span>
+                  <span>{s.percent}%</span>
+                </div>
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${s.percent}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center items-center text-center">
+          <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-3">
+            <Wallet size={32} />
+          </div>
+          <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Average Gig Value</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-white mt-1">₹450</p>
+          <p className="text-xs text-emerald-500 font-bold mt-2">+12% from last month</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function AdminView() {
   const [gigs, setGigs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const loadData = async () => {
+    try {
+      const [gigsRes, usersRes] = await Promise.all([getAllGigsAdmin(), getAllUsers()]);
+      setGigs(gigsRes.data);
+      setUsers(usersRes.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [gigsRes, usersRes] = await Promise.all([getAllGigsAdmin(), getAllUsers()]);
-        setGigs(gigsRes.data);
-        setUsers(usersRes.data);
-      } catch (err) { console.error(err); } finally { setLoading(false); }
-    }
     loadData();
   }, []);
+
+  const handleDeleteUser = async (id, name) => {
+    if (window.confirm(`Are you sure you want to permanently delete ${name}?`)) {
+      try {
+        await deleteUser(id);
+        setUsers(users.filter(u => u._id !== id));
+      } catch (err) { alert("Failed to delete user"); }
+    }
+  };
+
+  const handleClearReview = async (id) => {
+    if (window.confirm("Are you sure you want to clear this review?")) {
+      try {
+        await clearReview(id);
+        loadData(); // Reload to get updated gigs
+      } catch (err) { alert("Failed to clear review"); }
+    }
+  };
+
+  const handleDeleteGig = async (id) => {
+    if (window.confirm("Are you sure you want to delete this gig entirely?")) {
+      try {
+        await deleteGig(id);
+        setGigs(gigs.filter(g => g._id !== id));
+      } catch (err) { alert("Failed to delete gig"); }
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center p-10 space-y-4">
@@ -1591,6 +1730,9 @@ function AdminView() {
   const completedGigs = gigs.filter(g => g.status === 'completed');
   const activeGigs = gigs.filter(g => g.status !== 'completed');
   const revenue = completedGigs.reduce((sum, g) => sum + (g.platformFee || 0), 0);
+  
+  // Gigs that have reviews attached
+  const reviewedGigs = completedGigs.filter(g => g.posterReview);
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 pb-24">
@@ -1601,12 +1743,7 @@ function AdminView() {
             <ShieldCheck size={14} /> SYSTEM ADMINISTRATOR
           </div>
           <h1 className="text-3xl sm:text-4xl font-black">Admin Command Center</h1>
-          <p className="text-indigo-200 mt-1">Manage users, monitor transactions, and resolve disputes.</p>
-        </div>
-        <div className="hidden sm:block">
-          <div className="h-20 w-20 rounded-full border-4 border-indigo-500/30 overflow-hidden bg-slate-800 flex items-center justify-center">
-            <ShieldCheck size={40} className="text-indigo-400" />
-          </div>
+          <p className="text-indigo-200 mt-1">Manage users, monitor transactions, and enforce platform ethics.</p>
         </div>
       </div>
 
@@ -1630,10 +1767,34 @@ function AdminView() {
         </div>
       </div>
 
-      {/* Recent Users Table */}
+      {/* Moderation: Reviews */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-900/10">
+          <h2 className="text-lg font-bold text-red-700 dark:text-red-400 flex items-center gap-2"><MessageSquareWarning size={18}/> Ethics & Moderation (Recent Reviews)</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {reviewedGigs.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No reviews exist on the platform yet.</p>
+          ) : reviewedGigs.map(g => (
+            <div key={g._id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+              <div>
+                <p className="text-xs font-bold text-slate-500 mb-1">Gig: {g.title}</p>
+                <div className="flex items-center gap-1 mb-1"><Star size={12} className="text-amber-500 fill-amber-500"/> <span className="font-bold text-sm">{g.posterReview.rating}/5</span></div>
+                <p className="text-sm text-slate-800 dark:text-slate-200 italic">"{g.posterReview.comment}"</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => handleClearReview(g._id)} className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold rounded-lg transition">Clear Review</button>
+                <button onClick={() => handleDeleteGig(g._id)} className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition">Delete Gig</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Users Table */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><LayoutGrid size={18}/> Registered Students</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><LayoutGrid size={18}/> Manage Registered Students</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
@@ -1641,8 +1802,8 @@ function AdminView() {
               <tr>
                 <th className="px-6 py-3 font-bold">Student Name</th>
                 <th className="px-6 py-3 font-bold">Email</th>
-                <th className="px-6 py-3 font-bold">Branch/Role</th>
                 <th className="px-6 py-3 font-bold">Loyalty Points</th>
+                <th className="px-6 py-3 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1653,10 +1814,14 @@ function AdminView() {
                     {u.name}
                   </td>
                   <td className="px-6 py-4">{u.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-1 rounded text-xs font-bold">{u.major || u.role}</span>
-                  </td>
                   <td className="px-6 py-4 font-bold text-amber-500">{u.loyaltyPoints || 0}</td>
+                  <td className="px-6 py-4 text-right">
+                    {u.email !== 'admin@nitandhra.ac.in' && (
+                      <button onClick={() => handleDeleteUser(u._id, u.name)} className="text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 p-2 rounded-lg">
+                        Delete
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

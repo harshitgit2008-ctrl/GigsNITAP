@@ -24,3 +24,7 @@ export const getAllUsers = () => API.get('/users');
 export const getUser = (id) => API.get(`/users/${id}`);
 export const updateUser = (id, data) => API.patch(`/users/${id}`, data);
 export const toggleAvailability = (id) => API.patch(`/users/${id}/availability`);
+
+export const deleteUser = (id) => API.delete(`/users/${id}`);
+export const clearReview = (id) => API.patch(`/gigs/${id}/clear-review`);
+export const deleteGig = (id) => API.delete(`/gigs/${id}`);
