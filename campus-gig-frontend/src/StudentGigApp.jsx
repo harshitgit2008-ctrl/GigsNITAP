@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { registerUser, getGigs, createGig, acceptGig as acceptGigAPI } from './api/client';
+import { registerUser, getGigs, createGig, acceptGig as acceptGigAPI, getAllGigsAdmin, getAllUsers, getUserGigs } from './api/client';
 import {
   Search, MapPin, Clock, Star, CheckCircle2, Zap, MessageCircle, User as UserIcon,
   Plus, Filter, Shield, DollarSign, TrendingUp, Award, Send, Paperclip, ChevronRight,
@@ -785,7 +785,6 @@ function FeedView({ acceptedGigs, onAcceptGig, onMessageFreelancer, showToast, c
     } else if (feedMode === 'directory') {
       async function loadDirectory() {
         try {
-          const { getAllUsers } = await import('./api/client.js');
           const res = await getAllUsers();
           setDbUsers(res.data.filter(u => u._id !== currentUser?._id && u.role !== 'admin'));
         } catch (e) { console.error(e); }
@@ -1392,7 +1391,6 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
 
   const fetchGigs = async () => {
     try {
-      const { getUserGigs } = await import('./api/client.js');
       const res = await getUserGigs(currentUser?._id || currentUser?.id);
       setUserGigs(Array.isArray(res.data) ? res.data : []);
     } catch (err) { 
@@ -1407,7 +1405,7 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
 
   const handleComplete = async () => {
     try {
-      const { completeGig } = await import('./api/client.js');
+      
       await completeGig(reviewModal._id, {
         tip: Number(tip),
         posterReview: { rating, comment }
@@ -1575,7 +1573,6 @@ function AdminView() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { getAllGigsAdmin, getAllUsers } = await import('./api/client.js');
         const [gigsRes, usersRes] = await Promise.all([getAllGigsAdmin(), getAllUsers()]);
         setGigs(gigsRes.data);
         setUsers(usersRes.data);
