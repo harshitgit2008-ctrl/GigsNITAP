@@ -1675,7 +1675,7 @@ export default function StudentGigApp() {
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
-  const [view, setView] = useState(currentUser ? "feed" : "onboarding");
+  const [view, setView] = useState(currentUser ? (currentUser.email === "admin@nitandhra.ac.in" ? "admin" : "feed") : "onboarding");
   const [onboarded, setOnboarded] = useState(!!currentUser);
   const [darkMode, setDarkMode] = useState(false);
 
@@ -1832,6 +1832,7 @@ export default function StudentGigApp() {
             />
           )}
           {view === "insights" && <InsightsView />}
+          {view === "admin" && <AdminView />}
           {view === "profile" && (
             <ProfileView availableNow={availableNow} setAvailableNow={setAvailableNow} acceptedCount={acceptedGigs.length + postedCount} currentUser={currentUser} />
           )}
