@@ -414,311 +414,198 @@ function Toast({ message, show }) {
 // ===========================================================================
 
 function OnboardingView({ onFinish, darkMode }) {
-  const [step, setStep] = useState(1);
+  const [authMode, setAuthMode] = useState("student"); // student | admin
+  const [isLogin, setIsLogin] = useState(true);
+  
+  // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("");
-  const [upiId, setUpiId] = useState("");
-  const [verified, setVerified] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [role, setRole] = useState(null);
-  const [skills, setSkills] = useState([]);
-  const [availableNow, setAvailableNow] = useState(true);
+  const [role, setRole] = useState("both"); // seller, buyer, both
+  
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const totalSteps = 3;
 
-  // Relaxed for dev/testing, but explicitly encouraging student.nitandhra.ac.in
-  const eduValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
-  const nameValid = name.trim().length >= 2;
-  const nitValid = email.toLowerCase().includes("nitandhra.ac.in");
-
-  function handleVerify() {
-    if (!eduValid || !nameValid) return;
-    setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
-      setVerified(true);
-    }, 900);
-  }
-
-  function toggleSkill(skill) {
-    setSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
-  }
-
-  async function handleFinish() {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     setError("");
+    
     try {
-      const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
-      // Backend expects: major (branch), year, university
-      const res = await registerUser({ password, 
-        name: name.trim(), 
-        email: email.trim().toLowerCase(), 
-        role, 
-        skills, 
-        initials,
-        major: branch || 'B.Tech',
-        year: year || '1st Year',
-        university: 'NIT Andhra Pradesh'
-      });
+      const payload = {
+        email: authMode === "admin" ? "admin@nitandhra.ac.in" : email,
+        password,
+      };
       
-      // Store UPI locally for MVP purposes since backend user model doesn't have it yet, 
-      // but ideally this goes to the DB.
-      const userData = { ...res.data, upiId: upiId || '' };
-      onFinish({ user: userData, availableNow });
+      if (!isLogin && authMode === "student") {
+        payload.name = name;
+        payload.major = branch;
+        payload.year = year;
+        payload.role = role;
+        payload.initials = name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
+      } else if (authMode === "admin") {
+        payload.name = "System Admin";
+        payload.role = "both";
+      }
+      
+      const res = await registerUser(payload);
+      
+      // Pass the user to parent
+      onFinish({ user: res.data, availableNow: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Authentication failed. Please check credentials.');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center">
-              <div
-                className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors duration-300 ${
-                  s < step
-                    ? "bg-emerald-500 text-white"
-                    : s === step
-                    ? "bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-500/20"
-                    : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
-                }`}
-              >
-                {s < step ? <Check size={16} /> : s}
-              </div>
-              {s < totalSteps && <div className={`h-0.5 w-10 mx-1 rounded ${s < step ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"}`} />}
-            </div>
-          ))}
+        
+        {/* Toggle between Student & Admin */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-8">
+          <button 
+            onClick={() => { setAuthMode("student"); setIsLogin(true); setError(""); }}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${authMode === 'student' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}
+          >
+            Student Portal
+          </button>
+          <button 
+            onClick={() => { setAuthMode("admin"); setIsLogin(true); setError(""); }}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${authMode === 'admin' ? 'bg-white dark:bg-slate-700 shadow-sm text-red-500 dark:text-red-400' : 'text-slate-500'}`}
+          >
+            Admin Portal
+          </button>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm p-6 sm:p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 dark:border-slate-800">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              {authMode === "admin" ? "Admin Login" : isLogin ? "Welcome Back" : "Create Account"}
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {authMode === "admin" 
+                ? "Access the system dashboard and gig analytics."
+                : isLogin ? "Enter your NIT AP credentials to continue." : "Join the Campus Gig Economy today."}
+            </p>
+          </div>
+
           {error && (
-            <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-3 py-2.5 text-red-700 dark:text-red-300 text-sm">
-              {error}
+            <div className="mb-6 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center gap-2">
+              <AlertTriangle size={16} /> {error}
             </div>
           )}
 
-          {step === 1 && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                <Shield size={20} />
-                <span className="text-xs font-bold uppercase tracking-wider">Campus Verification</span>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {authMode === "admin" ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Admin Username</label>
+                <div className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-slate-500 font-medium">
+                  admin@nitandhra.ac.in
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create your account</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Gig Marketplace is exclusive to verified students — this keeps every gig hyper-local and trustworthy.
-                </p>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="rollnumber@student.nitandhra.ac.in"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-slate-800 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                  required
+                />
               </div>
+            )}
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Your name</label>
-                <div className="relative">
-                  <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {!isLogin && authMode === "student" && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Ravi Kumar"
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="E.g. Karthik Reddy"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-slate-800 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                    required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Branch</label>
-                  <select
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Select...</option>
-                    <option value="CSE">CSE</option>
-                    <option value="ECE">ECE</option>
-                    <option value="EEE">EEE</option>
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Civil">Civil</option>
-                    <option value="Biotech">Biotech</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Branch</label>
+                    <input
+                      type="text"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      placeholder="CSE, ECE, etc."
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-slate-800 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Year</label>
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-slate-800 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                      required
+                    >
+                      <option value="">Select...</option>
+                      <option value="1st Year">1st Year</option>
+                      <option value="2nd Year">2nd Year</option>
+                      <option value="3rd Year">3rd Year</option>
+                      <option value="4th Year">4th Year</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">B.Tech Year</label>
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Select...</option>
-                    <option value="1st Year">1st Year</option>
-                    <option value="2nd Year">2nd Year</option>
-                    <option value="3rd Year">3rd Year</option>
-                    <option value="4th Year">4th Year</option>
-                  </select>
-                </div>
-              </div>
+              </>
+            )}
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">NIT AP Email (Roll No.)</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setVerified(false);
-                    }}
-                    placeholder="412101@student.nitandhra.ac.in"
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                {email.length > 0 && !eduValid && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Must be a valid email address.</p>
-                )}
-                {email.length > 0 && eduValid && !nitValid && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Note: For official verification, use @student.nitandhra.ac.in</p>
-                )}
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={authMode === "admin" ? "Enter admin password" : "Enter your password"}
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-slate-800 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                required
+              />
+            </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1"><QrCode size={12}/> UPI ID (For Escrow Payments)</label>
-                <input
-                  type="text"
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  placeholder="rollno@ybl"
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              {verified && (
-                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-3 py-2.5 text-emerald-700 dark:text-emerald-300">
-                  <BadgeCheck size={18} className="shrink-0" />
-                  <span className="text-sm font-medium">Verified student — trust badge unlocked</span>
-                </div>
-              )}
-
-              <button
-                onClick={handleVerify}
-                disabled={!eduValid || !nameValid || verifying}
-                className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-semibold py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full mt-6 py-3.5 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center gap-2 ${authMode === 'admin' ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : authMode === "admin" ? "Access Dashboard" : isLogin ? "Sign In" : "Create Account"}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+          </form>
+          
+          {authMode === "student" && (
+            <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button 
+                onClick={() => { setIsLogin(!isLogin); setError(""); }}
+                className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
               >
-                {verifying ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" /> Verifying…
-                  </>
-                ) : verified ? (
-                  "Verified ✓"
-                ) : (
-                  "Send verification"
-                )}
+                {isLogin ? "Sign up" : "Log in"}
               </button>
-
-              <button
-                onClick={() => setStep(2)}
-                disabled={!verified}
-                className="w-full text-center text-sm font-semibold text-indigo-600 dark:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 flex items-center justify-center gap-1 py-1"
-              >
-                Continue <ArrowRight size={14} />
-              </button>
-            </div>
+            </p>
           )}
 
-          {step === 2 && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">How will you use campus?</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">You can always switch later in your profile.</p>
-              </div>
-              <div className="grid gap-3">
-                {[
-                  { id: "seller", label: "Seller (Freelancer)", desc: "Offer your skills & pick up gigs", icon: Briefcase },
-                  { id: "buyer", label: "Buyer (Hiring)", desc: "Post gigs and hire fellow students", icon: Users },
-                  { id: "both", label: "Both", desc: "Post gigs and get hired — full access", icon: Sparkles },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setRole(opt.id)}
-                    className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-colors ${
-                      role === opt.id
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10"
-                        : "border-slate-200 dark:border-slate-700 hover:border-indigo-200"
-                    }`}
-                  >
-                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${role === opt.id ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500"}`}>
-                      <opt.icon size={18} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">{opt.label}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{opt.desc}</p>
-                    </div>
-                    {role === opt.id && <CheckCircle2 size={18} className="text-indigo-600 dark:text-indigo-400" />}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setStep(1)} className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                  <ArrowLeft size={14} /> Back
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={!role}
-                  className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-semibold py-2.5 text-sm flex items-center justify-center gap-1"
-                >
-                  Continue <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Pick your skill tags</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Helps us match you to relevant gigs on the board.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {SKILL_TAGS.map((skill) => (
-                  <Pill key={skill} active={skills.includes(skill)} onClick={() => toggleSkill(skill)}>
-                    {skills.includes(skill) && <Check size={12} className="inline mr-1 -mt-0.5" />}
-                    {skill}
-                  </Pill>
-                ))}
-              </div>
-
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900/50">
-                <Toggle
-                  checked={availableNow}
-                  onChange={setAvailableNow}
-                  label="Available Now"
-                  sublabel="Show a live green indicator on your profile"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setStep(2)} className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                  <ArrowLeft size={14} /> Back
-                </button>
-                <button
-                  onClick={handleFinish}
-                  disabled={skills.length === 0}
-                  className="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 text-white font-semibold py-2.5 text-sm flex items-center justify-center gap-1"
-                >
-                  Enter Marketplace <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
+
 
 // ===========================================================================
 // VIEW 2 — DUAL FEED (Gig Board / Service Directory)
@@ -1506,6 +1393,9 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
     .reduce((sum, g) => sum + (g.budget || 0) + (g.tip || 0), 0);
   
   const isAdmin = currentUser?.email === 'admin@nitandhra.ac.in';
+
+  if (loading) return <div className="p-10 text-center font-bold text-slate-500"><Loader2 className="animate-spin inline mr-2"/> Loading Profile...</div>;
+
   const reviews = safeUserGigs.filter(g => g.posterReview && g?.acceptedBy?._id === currentUser?._id).map(g => g.posterReview);
 
   return (
