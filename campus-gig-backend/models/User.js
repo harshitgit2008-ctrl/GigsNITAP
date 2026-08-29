@@ -16,9 +16,6 @@ const userSchema = new mongoose.Schema({
   loyaltyPoints: { type: Number, default: 0, min: 0 },
 }, { timestamps: true });
 
-// Scalability: Index on email for fast login lookups
-userSchema.index({ email: 1 });
-
 // Security: Never return password in JSON responses
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
