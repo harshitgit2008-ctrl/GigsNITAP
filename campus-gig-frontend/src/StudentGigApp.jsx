@@ -1284,7 +1284,7 @@ function ChatView({ conversations, setConversations, activeId, setActiveId, show
     setConversations((prev) =>
       prev.map((c) =>
         c.id === active.id
-          ? { ...c, escrow: 0, messages: [...c.messages, { id: Date.now(), type: "system", text: `Funds Released — $${c.escrow.toFixed(2)} sent to seller.` }] }
+          ? { ...c, escrow: 0, messages: [...c.messages, { id: Date.now(), type: "system", text: `Funds Released — ₹${c.escrow.toFixed(2)} sent to seller.` }] }
           : c
       )
     );
@@ -1345,7 +1345,7 @@ function ChatView({ conversations, setConversations, activeId, setActiveId, show
             <div className="flex items-center gap-2">
               <Wallet size={16} className={active.escrow > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"} />
               <span className={`text-sm font-semibold ${active.escrow > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500 dark:text-slate-400"}`}>
-                {active.escrow > 0 ? `Funds Locked in Escrow: $${active.escrow.toFixed(2)}` : "Escrow released — gig complete"}
+                {active.escrow > 0 ? `Funds Locked in Escrow: ₹${active.escrow.toFixed(2)}` : "Escrow released — gig complete"}
               </span>
             </div>
             {active.escrow > 0 && <Shield size={15} className="text-emerald-500" />}
@@ -1457,239 +1457,168 @@ function ChatView({ conversations, setConversations, activeId, setActiveId, show
 // VIEW 5 — PROFILE & PORTFOLIO
 // ===========================================================================
 
-function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser }) {
+function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser, setView }) {
   const [tab, setTab] = useState("gigs");
+  const [userGigs, setUserGigs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Complete gig modal state
+  const [reviewModal, setReviewModal] = useState(null);
+  const [tip, setTip] = useState(0);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
 
-  const completedGigs = [
-    { title: "M1 Exam Notes Delivery", amount: 150, date: "Aug 21" },
-    { title: "Shifted mattress to Godavari Hostel", amount: 200, date: "Aug 15" },
-    { title: "Vulcanzy Core Team T-Shirt Design", amount: 800, date: "Aug 9" },
-  ];
-  const workSamples = [
-    { title: "Python Automation Script", type: "Code" },
-    { title: "ED Sheet Orthographic Guide", type: "Doc" },
-    { title: "Shishir Fest Poster", type: "Design" },
-  ];
-  const reviews = [
-    { name: "Suresh P", rating: 5, text: "Explained pointers in C very well. Highly recommended." },
-    { name: "Ananya S", rating: 5, text: "Brought my parcel from main gate quickly." },
-    { name: "Rahul M", rating: 4, text: "Good design work, but asked for 2 revisions." },
-  ];
+  const fetchGigs = async () => {
+    try {
+      const { getUserGigs } = await import('./api/client.js');
+      const res = await getUserGigs(currentUser._id);
+      setUserGigs(res.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchGigs(); }, [currentUser._id]);
+
+  const handleComplete = async () => {
+    try {
+      const { completeGig } = await import('./api/client.js');
+      await completeGig(reviewModal._id, {
+        tip: Number(tip),
+        posterReview: { rating, comment }
+      });
+      setReviewModal(null);
+      setTip(0); setRating(5); setComment("");
+      fetchGigs(); // refresh data
+    } catch (err) { alert("Failed to complete gig"); }
+  };
+
+  const completedGigs = userGigs.filter(g => g.status === 'completed' || g.status === 'in_progress');
+  // Earned is only for gigs you accepted that are completed
+  const totalEarned = userGigs
+    .filter(g => g.status === 'completed' && g.acceptedBy?._id === currentUser._id)
+    .reduce((sum, g) => sum + (g.budget || 0) + (g.tip || 0), 0);
+  
+  const isAdmin = currentUser?.email === 'admin@nitandhra.ac.in';
+  const reviews = userGigs.filter(g => g.posterReview && g.acceptedBy?._id === currentUser._id).map(g => g.posterReview);
 
   return (
     <div className="max-w-2xl mx-auto pb-10">
-      {/* Banner */}
       <div className="h-28 sm:h-36 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 relative">
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_30%,white_1px,transparent_1px)] [background-size:16px_16px]" />
       </div>
       <div className="px-4 sm:px-6">
         <div className="-mt-12 flex items-end justify-between">
           <Avatar initials={currentUser?.initials || "?"} size="xl" ring />
-          <button className="mb-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-            <Settings size={13} /> Edit
-          </button>
         </div>
-
         <div className="mt-2 flex items-center gap-1.5">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{currentUser?.name || "Student"}</h1>
           <BadgeCheck size={17} className="text-indigo-500" />
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
-          <GraduationCap size={14} /> {currentUser?.major || "Student"} {currentUser?.year ? `· ${currentUser.year}` : ""}
-        </p>
-
+        <p className="text-sm text-slate-500 dark:text-slate-400">{currentUser?.major} · {currentUser?.year}</p>
+        
         <div className="flex flex-wrap gap-1.5 mt-2">
+          {currentUser?.loyaltyPoints > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[11px] font-bold px-2.5 py-1 border border-blue-200 dark:border-blue-800/50">
+              <Award size={11} /> Loyalty Pts: {currentUser.loyaltyPoints}
+            </span>
+          )}
           {currentUser?.upiId && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2.5 py-1 border border-emerald-200 dark:border-emerald-800/50">
               <QrCode size={11} /> UPI: {currentUser.upiId}
             </span>
           )}
-          {currentUser?.email && currentUser.email.match(/^\d+/) && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold px-2.5 py-1">
-              <ShieldCheck size={11} /> Roll No: {currentUser.email.match(/^\d+/)[0]}
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white text-[11px] font-bold px-2.5 py-1">
-            <Award size={11} /> Top Rated
-          </span>
         </div>
-
-        {/* Available now toggle */}
-        <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 p-3.5 flex items-center justify-between bg-white dark:bg-slate-800">
-          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <span className={`h-2.5 w-2.5 rounded-full ${availableNow ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-600"}`} />
-            {availableNow ? "Available Now" : "Not available"}
-          </span>
-          <Toggle checked={availableNow} onChange={setAvailableNow} />
-        </div>
-
-        {/* Earnings dashboard */}
+        
+        {isAdmin && (
+          <button onClick={() => setView('admin')} className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 font-bold flex items-center justify-center gap-2 shadow-sm">
+            <ShieldCheck size={18} /> Access Admin Dashboard
+          </button>
+        )}
+        
         <div className="grid grid-cols-3 gap-2.5 mt-4">
-          <MetricCard icon={IndianRupee} label="Total Earned" value="₹12,400" accent="emerald" />
-          <MetricCard icon={CheckCircle2} label="Completed" value={`${38 + acceptedCount}`} accent="indigo" />
-          <MetricCard icon={Star} label="Rating" value="4.9" accent="amber" />
+          <MetricCard icon={IndianRupee} label="Total Earned" value={"₹" + totalEarned} accent="emerald" />
+          <MetricCard icon={CheckCircle2} label="Gigs Done" value={userGigs.filter(g => g.status === 'completed' && g.acceptedBy?._id === currentUser._id).length} accent="indigo" />
+          <MetricCard icon={Star} label="Rating" value="5.0" accent="amber" />
         </div>
 
-        {/* Portfolio tabs */}
         <div className="mt-6">
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-            {[
-              { id: "gigs", label: "Completed Gigs" },
-              { id: "samples", label: "Work Samples" },
-              { id: "reviews", label: "Reviews" },
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`rounded-lg py-2 text-xs sm:text-sm font-semibold transition-colors ${tab === t.id ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400"}`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+            <button onClick={() => setTab("gigs")} className={`rounded-lg py-2 text-sm font-semibold ${tab === "gigs" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400"}`}>My Real Gigs</button>
+            <button onClick={() => setTab("reviews")} className={`rounded-lg py-2 text-sm font-semibold ${tab === "reviews" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400"}`}>Reviews</button>
           </div>
-
-          <div className="mt-3 space-y-2.5">
-            {tab === "gigs" &&
-              completedGigs.map((g) => (
-                <div key={g.title} className="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-                  <div className="flex-1 p-3">
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{g.title}</p>
-                    <p className="text-xs text-slate-400">{g.date}</p>
+          <div className="mt-4 space-y-3">
+            {tab === "gigs" && (
+              loading ? <p className="text-slate-500 text-center py-4">Loading...</p> : userGigs.length === 0 ? <p className="text-slate-500 text-center py-4">No gigs yet.</p> :
+              userGigs.map(g => (
+                <div key={g._id} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-slate-100">{g.title}</p>
+                      <p className="text-xs text-slate-500 mt-1">Role: {g.postedBy?._id === currentUser._id ? 'Posted By Me' : 'Worker'}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-emerald-600 font-black">₹{g.budget}</div>
+                      <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded uppercase ${g.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : g.status === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>{g.status.replace('_', ' ')}</div>
+                    </div>
                   </div>
-                  <Perforation />
-                  <div className="px-4">
-                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">+${g.amount}</p>
-                  </div>
+                  {/* Action Button: Only Poster can Mark Complete if In Progress */}
+                  {g.status === 'in_progress' && g.postedBy?._id === currentUser._id && (
+                    <button onClick={() => setReviewModal(g)} className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 rounded-lg transition">
+                      Mark as Complete & Review
+                    </button>
+                  )}
+                  {g.status === 'completed' && g.tip > 0 && (
+                    <div className="mt-2 text-xs font-semibold text-amber-600 flex items-center gap-1"><Award size={12}/> Included ₹{g.tip} Tip</div>
+                  )}
                 </div>
-              ))}
-
-            {tab === "samples" &&
-              workSamples.map((s) => (
-                <div key={s.title} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                  <div className="h-10 w-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                    <FileText size={17} />
+              ))
+            )}
+            {tab === "reviews" && (
+              reviews.length === 0 ? <p className="text-slate-500 text-center py-4">No reviews yet.</p> :
+              reviews.map((r, i) => (
+                <div key={i} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-1 mb-1">
+                    {[...Array(5)].map((_, idx) => (
+                      <Star key={idx} size={14} className={idx < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-300"} />
+                    ))}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{s.title}</p>
-                    <p className="text-xs text-slate-400">{s.type}</p>
-                  </div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">{r.comment}</p>
                 </div>
-              ))}
-
-            {tab === "reviews" &&
-              reviews.map((r) => (
-                <div key={r.name} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{r.name}</p>
-                    <Stars rating={r.rating} size={12} />
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{r.text}</p>
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, accent }) {
-  const colors = {
-    emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10",
-    indigo: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10",
-    amber: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10",
-  };
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-      <div className={`h-7 w-7 rounded-lg flex items-center justify-center mb-1.5 ${colors[accent]}`}>
-        <Icon size={14} />
-      </div>
-      <p className="text-base font-bold text-slate-800 dark:text-white tabular-nums leading-none">{value}</p>
-      <p className="text-[10px] text-slate-400 mt-1">{label}</p>
-    </div>
-  );
-}
-
-// ===========================================================================
-// INSIGHTS VIEW
-// ===========================================================================
-
-function InsightsView() {
-  return (
-    <div className="max-w-2xl mx-auto px-4 pb-6">
-      <div className="pt-6 pb-4">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          <Activity className="text-indigo-600 dark:text-indigo-400" />
-          Campus Economy
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Live data from the student marketplace.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 text-white shadow-sm">
-          <div className="flex items-center gap-1.5 opacity-80 text-xs font-semibold uppercase tracking-wider mb-2">
-            <DollarSign size={14} /> Total Value Created
-          </div>
-          <div className="text-3xl font-black tabular-nums tracking-tight">₹42,850</div>
-          <div className="text-xs mt-1 opacity-80">This semester</div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <CheckCircle2 size={14} /> Gigs Completed
-          </div>
-          <div className="text-3xl font-black text-slate-800 dark:text-white tabular-nums tracking-tight">1,842</div>
-          <div className="text-xs mt-1 text-emerald-500 font-medium flex items-center gap-0.5">
-            <TrendingUp size={10} /> +12% this week
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      <h3 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-        <Flame size={16} className="text-amber-500" /> High Demand Skills (Pre Mid-Sems)
-      </h3>
-      <div className="space-y-3 mb-6">
-        {[
-          { skill: "DSA & C++ Tutoring", rate: "₹300 - ₹500/hr", demand: 92 },
-          { skill: "Engineering Drawing (ED)", rate: "₹200 - ₹400 flat", demand: 85 },
-          { skill: "Night Canteen Delivery", rate: "₹30 - ₹50 flat", demand: 78 },
-          { skill: "AutoCAD & SolidWorks", rate: "₹400 - ₹800/hr", demand: 70 },
-        ].map((item, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div className="flex justify-between items-end mb-2">
-              <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{item.skill}</span>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.rate}</span>
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Complete Gig</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Release funds to {reviewModal.acceptedBy?.name}, leave a review, and award a tip!</p>
+            
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Add a Tip (₹)</label>
+            <input type="number" value={tip} onChange={(e)=>setTip(e.target.value)} className="w-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 rounded-lg p-2.5 mb-4 text-slate-800 dark:text-white" />
+            
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Rating (1-5)</label>
+            <div className="flex gap-2 mb-4">
+               {[1,2,3,4,5].map(num => (
+                 <button key={num} onClick={()=>setRating(num)} className={`h-10 w-10 rounded-full font-bold ${rating >= num ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-400'}`}>{num}</button>
+               ))}
             </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
-              <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${item.demand}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
 
-      <h3 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-        <Award size={16} className="text-indigo-500" /> Top Contributors
-      </h3>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
-        {[
-          { name: "Karthik N", initials: "KN", major: "CSE", earned: "₹12,400", rank: 1 },
-          { name: "Vikas Patel", initials: "VP", major: "ECE", earned: "₹9,800", rank: 2 },
-          { name: "Deepak M", initials: "DM", major: "Civil", earned: "₹8,500", rank: 3 },
-        ].map((user, i) => (
-          <div key={i} className={`flex items-center gap-3 p-3 ${i !== 2 ? 'border-b border-slate-100 dark:border-slate-700/60' : ''}`}>
-            <div className="w-6 text-center text-sm font-black text-slate-400">#{user.rank}</div>
-            <Avatar initials={user.initials} size="sm" />
-            <div className="flex-1">
-              <div className="font-semibold text-sm text-slate-800 dark:text-slate-100">{user.name}</div>
-              <div className="text-[10px] text-slate-500">{user.major}</div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Review Comment</label>
+            <textarea value={comment} onChange={(e)=>setComment(e.target.value)} rows="3" className="w-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 rounded-lg p-2.5 mb-6 text-slate-800 dark:text-white"></textarea>
+            
+            <div className="flex gap-3">
+              <button onClick={() => setReviewModal(null)} className="flex-1 py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl">Cancel</button>
+              <button onClick={handleComplete} className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl">Submit & Complete</button>
             </div>
-            <div className="font-bold text-sm text-emerald-600 dark:text-emerald-400">{user.earned}</div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // ===========================================================================
 // APP SHELL — NAV + ROUTING
 // ===========================================================================
@@ -1701,6 +1630,82 @@ const NAV_ITEMS = [
   { id: "insights", label: "Insights", icon: BarChart },
   { id: "profile", label: "Profile", icon: UserIcon },
 ];
+
+
+// ===========================================================================
+// ADMIN VIEW
+// ===========================================================================
+function AdminView() {
+  const [gigs, setGigs] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { getAllGigsAdmin, getAllUsers } = await import('./api/client.js');
+        const [gigsRes, usersRes] = await Promise.all([getAllGigsAdmin(), getAllUsers()]);
+        setGigs(gigsRes.data);
+        setUsers(usersRes.data);
+      } catch (err) { console.error(err); } finally { setLoading(false); }
+    }
+    loadData();
+  }, []);
+
+  if (loading) return <div className="p-10 text-center font-bold text-slate-500">Loading Admin Dashboard...</div>;
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8 pb-20">
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldCheck className="text-red-500" size={28} />
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Admin Dashboard</h2>
+      </div>
+      
+      <div>
+        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-3">Platform Users ({users.length})</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500">
+              <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Branch/Year</th><th className="p-3">Loyalty Pts</th></tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u._id} className="border-b border-slate-100 dark:border-slate-700/50">
+                  <td className="p-3 font-medium text-slate-800 dark:text-slate-100">{u.name}</td>
+                  <td className="p-3 text-slate-600 dark:text-slate-400">{u.email}</td>
+                  <td className="p-3 text-slate-600 dark:text-slate-400">{u.major} - {u.year}</td>
+                  <td className="p-3 text-blue-600 font-bold">{u.loyaltyPoints}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-3">All Gigs & Fees ({gigs.length})</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500">
+              <tr><th className="p-3">Title</th><th className="p-3">Status</th><th className="p-3">Budget</th><th className="p-3">Plat. Fee</th><th className="p-3">Tip</th></tr>
+            </thead>
+            <tbody>
+              {gigs.map(g => (
+                <tr key={g._id} className="border-b border-slate-100 dark:border-slate-700/50">
+                  <td className="p-3 font-medium text-slate-800 dark:text-slate-100">{g.title}</td>
+                  <td className="p-3 text-slate-600 dark:text-slate-400">{g.status}</td>
+                  <td className="p-3 text-slate-600 dark:text-slate-400">₹{g.budget}</td>
+                  <td className="p-3 text-emerald-600 font-bold">₹{g.platformFee || 0}</td>
+                  <td className="p-3 text-amber-600 font-bold">₹{g.tip || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentGigApp() {
   // Restore user from localStorage on mount

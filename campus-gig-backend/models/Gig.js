@@ -12,6 +12,10 @@ const gigSchema = new mongoose.Schema({
   acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   status: { type: String, enum: ['open', 'in_progress', 'completed'], default: 'open' },
   urgent: { type: Boolean, default: false },
+  platformFee: { type: Number, default: 0 },
+  tip: { type: Number, default: 0 },
+  posterReview: { rating: Number, comment: String },
+  workerReview: { rating: Number, comment: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Gig', gigSchema);
