@@ -5,9 +5,15 @@ const User = require('../models/User');
 // Register or Login (upsert by email)
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, skills, bio, role, university, major, year, initials } = req.body;
+    const { name, email, password, skills, bio, role, university, major, year, initials } = req.body;
     let user = await User.findOne({ email });
+    
     if (user) {
+      // Very basic password check for Hackathon (Plain text)
+      if (password && user.password && password !== user.password) {
+        return res.status(401).json({ error: 'Incorrect password' });
+      }
+      
       // Update fields if provided on re-login
       if (name) user.name = name;
       if (role) user.role = role;
@@ -17,10 +23,14 @@ router.post('/register', async (req, res) => {
       if (major) user.major = major;
       if (year) user.year = year;
       if (initials) user.initials = initials;
+      // If no password existed, set it now
+      if (!user.password && password) user.password = password;
+      
       await user.save();
       return res.status(200).json(user);
     }
-    user = await User.create({ name, email, skills, bio, role, university, major, year, initials });
+    
+    user = await User.create({ name, email, password, skills, bio, role, university, major, year, initials });
     res.status(201).json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });

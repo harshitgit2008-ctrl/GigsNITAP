@@ -381,7 +381,7 @@ function Toggle({ checked, onChange, label, sublabel, color = "emerald" }) {
         aria-pressed={checked}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-5" : "translate-x-0.5"}`}
+          className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-5" : "translate-x-0.5"}`}
         />
       </button>
     </div>
@@ -417,6 +417,7 @@ function OnboardingView({ onFinish, darkMode }) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("");
   const [upiId, setUpiId] = useState("");
@@ -451,7 +452,7 @@ function OnboardingView({ onFinish, darkMode }) {
     try {
       const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
       // Backend expects: major (branch), year, university
-      const res = await registerUser({ 
+      const res = await registerUser({ password, 
         name: name.trim(), 
         email: email.trim().toLowerCase(), 
         role, 
@@ -1150,7 +1151,7 @@ function PostGigView({ onCreate, showToast, currentUser }) {
               <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">AI Price Estimator</p>
             </div>
             <p className="text-2xl font-bold text-slate-800 dark:text-white tabular-nums">
-              ${estimate.low}–${estimate.high}
+              ₹{estimate.low}–₹{estimate.high}
               <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{category === "Tutoring" || category === "Tech" ? "/hr" : " total"}</span>
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Based on {Math.floor(40 + estimate.low)} similar campus gigs in {category}.</p>
@@ -1216,7 +1217,7 @@ function PostGigView({ onCreate, showToast, currentUser }) {
             </button>
             <div className="flex justify-between text-sm pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
               <span className="text-slate-500 dark:text-slate-400">Total</span>
-              <span className="font-bold text-slate-800 dark:text-white tabular-nums">${milestoneTotal.toFixed(2)}</span>
+              <span className="font-bold text-slate-800 dark:text-white tabular-nums">₹{milestoneTotal.toFixed(2)}</span>
             </div>
           </div>
         )}
@@ -1235,7 +1236,7 @@ function PostGigView({ onCreate, showToast, currentUser }) {
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between text-sm">
           <span className="text-slate-500 dark:text-slate-400">You'll be charged at posting</span>
           <span className="font-bold text-slate-800 dark:text-white tabular-nums">
-            ${(budgetValue + (urgent ? 2 : 0)).toFixed(2)}
+            ₹{(budgetValue + (urgent ? 2 : 0)).toFixed(2)}
           </span>
         </div>
 
@@ -1714,6 +1715,49 @@ function AdminView() {
   );
 }
 
+
+// ===========================================================================
+// VIEW 6: INSIGHTS VIEW
+// ===========================================================================
+function InsightsView() {
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Market Insights</h2>
+      
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Avg Hourly Rate</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">₹450</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Active Gigs</p>
+          <p className="text-2xl font-bold text-indigo-600 mt-1">142</p>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Trending Campus Needs</h3>
+      <div className="space-y-3">
+        {[
+          { label: 'ED Sheet Drawing', demand: 90 },
+          { label: 'Last-minute Delivery', demand: 75 },
+          { label: 'Python Debugging', demand: 60 },
+          { label: 'Photography', demand: 45 },
+        ].map((item, i) => (
+          <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50">
+            <div className="flex justify-between text-sm font-semibold mb-2">
+              <span className="text-slate-700 dark:text-slate-300">{item.label}</span>
+              <span className="text-indigo-600 dark:text-indigo-400">High Demand</span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+              <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${item.demand}%` }}></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function StudentGigApp() {
   // Restore user from localStorage on mount
   const [currentUser, setCurrentUser] = useState(() => {
@@ -1725,6 +1769,15 @@ export default function StudentGigApp() {
   const [view, setView] = useState(currentUser ? "feed" : "onboarding");
   const [onboarded, setOnboarded] = useState(!!currentUser);
   const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
   const [toast, setToast] = useState({ show: false, message: "" });
 
   const [acceptedGigs, setAcceptedGigs] = useState([]);
