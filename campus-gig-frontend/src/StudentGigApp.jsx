@@ -307,6 +307,24 @@ function estimatePrice(title, category, description) {
 // SMALL SHARED PRIMITIVES
 // ---------------------------------------------------------------------------
 
+
+function MetricCard({ icon: Icon, label, value, accent }) {
+  const colors = {
+    emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
+    indigo: "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400",
+    amber: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+  };
+  return (
+    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col items-center justify-center text-center">
+      <div className={`h-8 w-8 rounded-full flex items-center justify-center mb-2 ${colors[accent]}`}>
+        <Icon size={16} />
+      </div>
+      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{value}</p>
+    </div>
+  );
+}
+
 function Avatar({ initials, size = "md", ring = false, online = null }) {
   const sizes = { sm: "h-8 w-8 text-xs", md: "h-11 w-11 text-sm", lg: "h-16 w-16 text-lg", xl: "h-24 w-24 text-2xl" };
   return (
