@@ -18,4 +18,8 @@ const gigSchema = new mongoose.Schema({
   workerReview: { rating: Number, comment: String },
 }, { timestamps: true });
 
+// Scalability: Add indexes for fast querying
+gigSchema.index({ status: 1, category: 1 });
+gigSchema.index({ postedBy: 1 });
+
 module.exports = mongoose.model('Gig', gigSchema);
