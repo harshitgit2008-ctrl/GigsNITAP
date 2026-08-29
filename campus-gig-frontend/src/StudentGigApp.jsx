@@ -1834,7 +1834,7 @@ export default function StudentGigApp() {
           {view === "insights" && <InsightsView />}
           {view === "admin" && <AdminView />}
           {view === "profile" && (
-            <ProfileView availableNow={availableNow} setAvailableNow={setAvailableNow} acceptedCount={acceptedGigs.length + postedCount} currentUser={currentUser} />
+            <ProfileView availableNow={availableNow} setAvailableNow={setAvailableNow} acceptedCount={acceptedGigs.length + postedCount} currentUser={currentUser} setView={setView} />
           )}
         </main>
 
