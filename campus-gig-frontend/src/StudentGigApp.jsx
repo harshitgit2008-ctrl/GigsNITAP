@@ -1471,12 +1471,17 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
   const fetchGigs = async () => {
     try {
       const { getUserGigs } = await import('./api/client.js');
-      const res = await getUserGigs(currentUser._id);
-      setUserGigs(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      const res = await getUserGigs(currentUser?._id || currentUser?.id);
+      setUserGigs(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { 
+      console.error(err);
+      setUserGigs([]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  useEffect(() => { fetchGigs(); }, [currentUser._id]);
+  useEffect(() => { fetchGigs(); }, [currentUser?._id, currentUser?.id]);
 
   const handleComplete = async () => {
     try {
@@ -1491,14 +1496,16 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
     } catch (err) { alert("Failed to complete gig"); }
   };
 
-  const completedGigs = userGigs.filter(g => g.status === 'completed' || g.status === 'in_progress');
+  const safeUserGigs = Array.isArray(userGigs) ? userGigs : [];
+  const completedGigs = safeUserGigs.filter(g => g.status === 'completed' || g.status === 'in_progress');
+  
   // Earned is only for gigs you accepted that are completed
-  const totalEarned = userGigs
-    .filter(g => g.status === 'completed' && g.acceptedBy?._id === currentUser._id)
+  const totalEarned = safeUserGigs
+    .filter(g => g.status === 'completed' && g?.acceptedBy?._id === currentUser?._id)
     .reduce((sum, g) => sum + (g.budget || 0) + (g.tip || 0), 0);
   
   const isAdmin = currentUser?.email === 'admin@nitandhra.ac.in';
-  const reviews = userGigs.filter(g => g.posterReview && g.acceptedBy?._id === currentUser._id).map(g => g.posterReview);
+  const reviews = safeUserGigs.filter(g => g.posterReview && g?.acceptedBy?._id === currentUser?._id).map(g => g.posterReview);
 
   return (
     <div className="max-w-2xl mx-auto pb-10">
@@ -1547,21 +1554,21 @@ function ProfileView({ availableNow, setAvailableNow, acceptedCount, currentUser
           </div>
           <div className="mt-4 space-y-3">
             {tab === "gigs" && (
-              loading ? <p className="text-slate-500 text-center py-4">Loading...</p> : userGigs.length === 0 ? <p className="text-slate-500 text-center py-4">No gigs yet.</p> :
-              userGigs.map(g => (
-                <div key={g._id} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+              loading ? <p className="text-slate-500 text-center py-4">Loading...</p> : safeUserGigs.length === 0 ? <p className="text-slate-500 text-center py-4">No gigs yet.</p> :
+              safeUserGigs.map(g => (
+                <div key={g._id || Math.random()} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-bold text-slate-800 dark:text-slate-100">{g.title}</p>
-                      <p className="text-xs text-slate-500 mt-1">Role: {g.postedBy?._id === currentUser._id ? 'Posted By Me' : 'Worker'}</p>
+                      <p className="text-xs text-slate-500 mt-1">Role: {g.postedBy?._id === currentUser?._id ? 'Posted By Me' : 'Worker'}</p>
                     </div>
                     <div className="text-right">
                       <div className="text-emerald-600 font-black">₹{g.budget}</div>
-                      <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded uppercase ${g.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : g.status === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>{g.status.replace('_', ' ')}</div>
+                      <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded uppercase ${g.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : g.status === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>{g.status ? g.status.replace('_', ' ') : ''}</div>
                     </div>
                   </div>
                   {/* Action Button: Only Poster can Mark Complete if In Progress */}
-                  {g.status === 'in_progress' && g.postedBy?._id === currentUser._id && (
+                  {g.status === 'in_progress' && g.postedBy?._id === currentUser?._id && (
                     <button onClick={() => setReviewModal(g)} className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 rounded-lg transition">
                       Mark as Complete & Review
                     </button>
