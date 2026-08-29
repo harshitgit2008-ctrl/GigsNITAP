@@ -31,7 +31,17 @@ router.post('/register', authLimiter, async (req, res) => {
       const validPassword = await bcrypt.compare(password, user.password || '');
       // Fallback for old plaintext passwords
       if (!validPassword && password !== user.password) {
-        return res.status(401).json({ error: 'Incorrect password' });
+        // MIGRATION: If the user was created before we added passwords, let this login set their password permanently
+        if (!user.password || user.password.trim() === '') {
+          console.log('Migrating legacy user to new password system');
+        } else {
+          return res.status(401).json({ error: 'Incorrect password' });
+        }
+      }
+
+      // Upgrade plaintext passwords (or missing passwords) to bcrypt
+      if (password === user.password || !user.password) {
+          user.password = await bcrypt.hash(password, 10);
       }
 
       // Update fields if provided
