@@ -1698,7 +1698,7 @@ function AdminView() {
       try {
         await deleteUser(id);
         setUsers(users.filter(u => u._id !== id));
-      } catch (err) { alert("Failed to delete user"); }
+      } catch (err) { alert(err.response?.data?.error || err.response?.data?.message || "Failed to delete user. Try logging out and back in."); }
     }
   };
 
@@ -1707,7 +1707,7 @@ function AdminView() {
       try {
         await clearReview(id);
         loadData(); // Reload to get updated gigs
-      } catch (err) { alert("Failed to clear review"); }
+      } catch (err) { alert(err.response?.data?.error || err.response?.data?.message || "Failed to clear review. Try logging out and back in."); }
     }
   };
 
@@ -1837,6 +1837,12 @@ export default function StudentGigApp() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const stored = localStorage.getItem('campusgig_user');
+      const token = localStorage.getItem('token');
+      if (stored && !token) {
+        // User was logged in before JWT was added — force re-login
+        localStorage.removeItem('campusgig_user');
+        return null;
+      }
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
@@ -1870,7 +1876,11 @@ export default function StudentGigApp() {
     localStorage.setItem('campusgig_user', JSON.stringify(user));
     setOnboarded(true);
     setAvailableNow(avail);
-    setView("feed");
+    if (user?.email === 'admin@nitandhra.ac.in') {
+      setView("admin");
+    } else {
+      setView("feed");
+    }
     showToast("Welcome to the marketplace!");
   }
 
